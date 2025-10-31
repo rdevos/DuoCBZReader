@@ -1,12 +1,9 @@
 package be.afront.reader
 
-import java.awt.GridLayout
-import java.awt.event.{KeyAdapter, KeyEvent}
-import java.awt.event.KeyEvent.{VK_2, VK_4, VK_6, VK_8, VK_DOWN, VK_LEFT, VK_NUMPAD2, VK_NUMPAD4, VK_NUMPAD6, VK_NUMPAD8, VK_Q, VK_RIGHT, VK_UP}
+import java.awt.{FileDialog, Frame, GridLayout}
 import java.io.File
-import javax.swing.{JFrame, SwingUtilities}
+import javax.swing.JFrame
 import javax.swing.WindowConstants.EXIT_ON_CLOSE
-import java.awt.{FileDialog, Frame}
 
 object DuoCBZReader {
 
@@ -29,40 +26,14 @@ object DuoCBZReader {
     frame.add(panel1)
     frame.add(panel2)
 
-    frame.addKeyListener(new KeyAdapter {
-      override def keyPressed(e: KeyEvent): Unit = {
-        stateMachine(e.getKeyCode, panel1) match {
-          case Some(newState) =>
-            SwingUtilities.invokeLater { () =>
-              panel1.setNewState(newState)
-              panel2.setNewState(newState)
-              frame.repaint()
-            }
-          case None =>
-            frame.dispose()
-            state.close()
-        }
-      }
-    })
+    val handler = new EventHandler(frame, panel1, panel2)
+
+    frame.addKeyListener(handler)
+    frame.addMouseMotionListener(handler)
+    frame.addMouseListener(handler)
+
     frame.setVisible(true)
     frame.requestFocusInWindow()
-  }
-
-  private def stateMachine(keyCode:Int, panel1:ImagePanel):Option[ReaderState] = {
-    keyCode match {
-      case VK_RIGHT => Some(panel1.currentState.nextPage)
-      case VK_LEFT => Some(panel1.currentState.prevPage)
-      case VK_UP => Some(panel1.currentState.zoomIn)
-      case VK_DOWN => Some(panel1.currentState.zoomOut)
-
-      case VK_8 | VK_NUMPAD8 => Some(panel1.currentState.scrollUp)
-      case VK_2 | VK_NUMPAD2 => Some(panel1.currentState.scrollDown)
-      case VK_4 | VK_NUMPAD4 => Some(panel1.currentState.scrollLeft)
-      case VK_6 | VK_NUMPAD6 => Some(panel1.currentState.scrollRight)
-
-      case VK_Q => None
-      case _ => Some(panel1.currentState)
-    }
   }
 
   private def checkFileOrExit(path:String, exitCode:Int):File = {
@@ -106,5 +77,8 @@ object DuoCBZReader {
       Args(w, h, checkFileOrExit(args(2),2), checkFileOrExit(args(3),2))
     }
   }
+
+  private def noArguments(args: Array[String]):Boolean =
+    args.length == 0
 }
 

@@ -1,6 +1,6 @@
 package be.afront.reader
 
-import be.afront.reader.ReaderState.SCROLL_STEP
+import ReaderState.SCROLL_STEP
 
 import java.awt.image.BufferedImage
 import java.io.File
@@ -90,7 +90,10 @@ case class ReaderState(
 
   def scrollDown: ReaderState =
     verticalScroll(SCROLL_STEP)
-  
+
+  def scrollTo(px:Double, py:Double): ReaderState =
+    copy(hs=checkScroll(px), vs=checkScroll(py))
+
   def getCurrentImage(column:Int): Option[BufferedImage] =
     if (column==1) stateLeft.getCurrentImage else if(column==2) stateRight.getCurrentImage else None
 
