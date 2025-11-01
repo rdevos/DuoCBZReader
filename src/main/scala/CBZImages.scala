@@ -6,6 +6,7 @@ import java.io.File
 import javax.imageio.ImageIO
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
+import scala.util.Using
 
 class CBZImages(file: File) extends AutoCloseable {
   private val zipFile: ZipFile = new ZipFile(file)
@@ -30,12 +31,14 @@ class CBZImages(file: File) extends AutoCloseable {
 
     cache.getOrElseUpdate(page, {
       val entry = rootEntries(page)
-      val inputStream = zipFile.getInputStream(entry)
-      try {
+      val img = Using(zipFile.getInputStream(entry)) { inputStream =>
         ImageIO.read(inputStream)
-      } finally {
-        inputStream.close()
-      }
+      }.getOrElse(null)
+
+      if(img == null) 
+        throw new ImageDecodingException("could not decode file "+entry);
+      
+      img
     })
   }
 

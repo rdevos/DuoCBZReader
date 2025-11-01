@@ -70,6 +70,10 @@ case class ReaderState(
   def zoomOut: ReaderState = copy(zoomLevel =
     zoomLevel - 1)
 
+  def minus: ReaderState = copy(stateRight = stateRight.prevPage._1)
+
+  def plus: ReaderState = copy(stateRight = stateRight.nextPage._1)
+
   def conditionalScroll(scrolled: => ReaderState):ReaderState =
     if(zoomLevel>0) scrolled else this
 

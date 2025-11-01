@@ -11,15 +11,19 @@ DuoCBZReader 1600 1200 comic.en.cbz comic.jp.cbz
 
 - q: Quit
 
-- cursor left: previous page
+- cursor left: previous pages
 
-- cursor right: next page
+- cursor right: next pages
 
 - cursor up: zoom in
 
 - cursor up: zoom out
 
-when zoomed in:
+- plus: next right page
+
+- minus: previous right page
+
+when zoomed in, use mouse drag to scroll or use:
 
 - 2: scroll down
 
