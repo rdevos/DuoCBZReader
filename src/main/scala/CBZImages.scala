@@ -1,7 +1,8 @@
 package be.afront.reader
 
 import java.awt.image.BufferedImage
-import java.util.zip.{ZipEntry, ZipFile}
+import org.apache.commons.compress.archivers.zip.{ZipArchiveEntry, ZipFile}
+
 import java.io.File
 import javax.imageio.ImageIO
 import scala.collection.mutable
@@ -9,10 +10,13 @@ import scala.jdk.CollectionConverters.*
 import scala.util.Using
 
 class CBZImages(file: File) extends AutoCloseable {
-  private val zipFile: ZipFile = new ZipFile(file)
 
-  private val rootEntries: List[ZipEntry] = {
-    zipFile.entries().asScala.toList
+  private val zipFile: ZipFile = ZipFile.builder()
+    .setFile(file)
+    .get()
+  
+  private val rootEntries: List[ZipArchiveEntry] = {
+    zipFile.getEntries.asScala.toList
       .filter(entry => !entry.isDirectory && isImageEntry(entry.getName))
       .sortBy(_.getName)
   }
