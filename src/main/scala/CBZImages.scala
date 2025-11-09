@@ -1,13 +1,17 @@
 package be.afront.reader
 
+import CBZImages.{getHalf, isJPGStartOfFrameMarker, readBigEndianInt16, readLittleEndianInt16}
+
 import java.awt.image.BufferedImage
 import org.apache.commons.compress.archivers.zip.{ZipArchiveEntry, ZipFile}
 
-import java.io.File
+import java.awt.Graphics2D
+import java.io.{BufferedInputStream, File, InputStream}
+import java.nio.ByteBuffer
 import javax.imageio.ImageIO
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
-import scala.util.Using
+import scala.util.{Try, Using}
 
 class CBZImages(file: File) extends AutoCloseable {
 
@@ -21,9 +25,76 @@ class CBZImages(file: File) extends AutoCloseable {
       .sortBy(_.getName)
   }
 
-  val totalPages: Int = rootEntries.size
+  type EntryName = String
 
-  val entries: List[String] = rootEntries.map(_.getName)
+  val rawPages: Int = rootEntries.size
+
+  val entries: List[EntryName] = rootEntries.map(_.getName)
+
+  private val aspectRatios: Map[EntryName, Double] = {
+    rootEntries
+      .flatMap { entry =>
+        Try {
+          val is = zipFile.getInputStream(entry)
+          Using(new BufferedInputStream(is)) { bis =>
+            val buffer = new Array[Byte](8*1024)
+            val bytesRead = bis.read(buffer)
+            parseDimensions(entry.getName.toLowerCase, buffer, bytesRead)
+          }.get
+        }.toOption.flatten.map { case (w, h) =>
+          entry.getName -> (w.toDouble / h.toDouble)
+        }
+      }.toMap
+  }
+
+  val widepages: Int = aspectRatios.values.count(_ > 1)
+
+  val wideIndices: Set[Int] = entries.indices
+    .filter(i => aspectRatios.get(entries(i)).exists(_ > 1))
+    .toSet
+
+  val totalPages: Int = rawPages + widepages
+
+  val pageMap: Map[Int, (Int, Option[Int])] = {
+    entries.indices.flatMap { rawIdx =>
+      if (wideIndices.contains(rawIdx)) {
+        Seq((rawIdx, Some(0)), (rawIdx, Some(1)))
+      } else {
+        Seq((rawIdx, None))
+      }
+    }.zipWithIndex.map { case ((rawIdx, side), pageIdx) =>
+      pageIdx -> (rawIdx, side)
+    }.toMap
+  }
+
+  private def parseDimensions(name: String, buffer: Array[Byte], len: Int): Option[(Int, Int)] = {
+    if (name.endsWith(".png") || buffer.startsWith(Array(0x89.toByte, 'P', 'N', 'G'))) {
+      // PNG: Width at 16-19 (big-endian), height 20-23
+      val bb = ByteBuffer.wrap(buffer, 16, 8)
+      Some(bb.getInt, bb.getInt)
+    } else if (name.endsWith(".gif") || buffer.startsWith("GIF".getBytes)) {
+      // GIF: Width at 6-7 (little-endian), height 8-9
+      val width = readLittleEndianInt16(buffer, 6)
+      val height = readLittleEndianInt16(buffer, 8)
+      Some(width, height)
+    } else if (name.endsWith(".jpg") || name.endsWith(".jpeg") || buffer.startsWith(Array(0xFF.toByte, 0xD8.toByte))) {
+      // JPEG: Scan for SOF marker
+      var pos = 2
+      while (pos < len - 5) {
+
+        if (isJPGStartOfFrameMarker(buffer, pos)) {
+          val height = readBigEndianInt16(buffer, pos + 5)
+          val width = readBigEndianInt16(buffer, pos + 7)
+          return Some(width, height)
+        }
+        val sizeWithHeader = 2+ readBigEndianInt16(buffer, pos + 2)
+        pos += sizeWithHeader
+      }
+      None
+    } else {
+      None
+    }
+  }
 
   private val cache: mutable.Map[Int, BufferedImage] = mutable.Map.empty
 
@@ -34,10 +105,15 @@ class CBZImages(file: File) extends AutoCloseable {
     }
 
     cache.getOrElseUpdate(page, {
-      val entry = rootEntries(page)
-      val img = Using(zipFile.getInputStream(entry)) { inputStream =>
+      val (rawIdx, optSide) = pageMap(page)
+      val entry = rootEntries(rawIdx)
+      val fullImg = Using(zipFile.getInputStream(entry)) { inputStream =>
         ImageIO.read(inputStream)
       }.getOrElse(null)
+      val img = optSide match {
+        case None => fullImg
+        case Some(side) => getHalf(fullImg, side)
+      }
 
       if(img == null) 
         throw new ImageDecodingException("could not decode file "+entry);
@@ -53,5 +129,38 @@ class CBZImages(file: File) extends AutoCloseable {
   private def isImageEntry(name: String): Boolean = {
     val lower = name.toLowerCase
     lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") || lower.endsWith(".gif")
+  }
+}
+
+object CBZImages {
+
+  def readBigEndianInt16(bytes: Array[Byte], offset: Int = 0): Int =
+    ((bytes(offset) & 0xFF) << 8) | (bytes(offset + 1) & 0xFF)
+
+  def readLittleEndianInt16(bytes: Array[Byte], offset: Int = 0): Int =
+    ((bytes(offset + 1) & 0xFF) << 8) | (bytes(offset) & 0xFF)
+
+  def isJPGStartOfFrameMarker(buffer: Array[Byte], pos:Int):Boolean =
+    (buffer(pos) == 0xFF.toByte &&
+    (buffer(pos + 1) & 0xFF) >= 0xC0 &&
+    (buffer(pos + 1) & 0xFF) <= 0xCF &&
+    buffer(pos + 1) != 0xC4.toByte &&
+    buffer(pos + 1) != 0xC8.toByte
+    && buffer(pos + 1) != 0xCC.toByte)
+
+
+  //TODO: use 1 - side if in RtoL mode
+
+  def getHalf(img: BufferedImage, side: Int): BufferedImage = {
+    require(side == 0 || side == 1, "Side must be 0 (1st half) or 1 (2nd half)")
+    val fullWidth = img.getWidth
+    val halfWidth = fullWidth / 2
+    val height = img.getHeight
+    val halfImg = new BufferedImage(halfWidth, height, img.getType)
+    val g: Graphics2D = halfImg.createGraphics()
+    val srcX = if (side == 0) 0 else fullWidth - halfWidth
+    g.drawImage(img, 0, 0, halfWidth, height, srcX, 0, srcX + halfWidth, height, null)
+    g.dispose()
+    halfImg
   }
 }
