@@ -1,10 +1,11 @@
 package be.afront.reader
 
-import java.awt.{FileDialog, Frame, GridLayout}
+import java.awt.event.{ActionEvent, ActionListener}
+import java.awt.{FileDialog, Frame, GridLayout, Menu, MenuBar, MenuItem}
 import java.io.File
-import javax.swing.JFrame
+import javax.swing.{JFrame, JMenu, JMenuBar, JMenuItem}
 import javax.swing.WindowConstants.EXIT_ON_CLOSE
-
+import EventHandler.selectFile
 object DuoCBZReader {
 
   case class Args(width:Int, height:Int, cbzPath1:File, cbzPath2:File)
@@ -28,12 +29,24 @@ object DuoCBZReader {
 
     val handler = new EventHandler(frame, panel1, panel2)
 
+    frame.setMenuBar(initMenus(handler))
+
     frame.addKeyListener(handler)
     frame.addMouseMotionListener(handler)
     frame.addMouseListener(handler)
 
     frame.setVisible(true)
     frame.requestFocusInWindow()
+  }
+
+  private def initMenus(handler:EventHandler):MenuBar = {
+    val menuBar = new MenuBar()
+    val fileMenu = new Menu("File")
+    val openItem = new MenuItem("Open")
+    openItem.addActionListener(handler)
+    fileMenu.add(openItem)
+    menuBar.add(fileMenu)
+    menuBar
   }
 
   private def checkFileOrExit(path:String, exitCode:Int):File = {
@@ -44,21 +57,7 @@ object DuoCBZReader {
     }
     file
   }
-
-  private def selectFile(prompt:String): File = {
-    val dummyFrame = new Frame()
-    dummyFrame.setSize(0, 0) // Make it invisible
-
-    val dialog = new FileDialog(dummyFrame, prompt, FileDialog.LOAD)
-    dialog.setVisible(true)
-
-    val files = dialog.getFiles
-    dialog.dispose()
-    dummyFrame.dispose()
-
-    files(0)
-  }
-
+  
   private def parseArgs(args: Array[String]):Args = {
     if (args.length == 0) {
       //TODO: base width and height on screen size
@@ -77,7 +76,7 @@ object DuoCBZReader {
       Args(w, h, checkFileOrExit(args(2),2), checkFileOrExit(args(3),2))
     }
   }
-
+  
   private def noArguments(args: Array[String]):Boolean =
     args.length == 0
 }

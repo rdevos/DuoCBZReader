@@ -27,9 +27,9 @@ class CBZImages(file: File) extends AutoCloseable {
 
   type EntryName = String
 
-  val rawPages: Int = rootEntries.size
+  private val rawPages: Int = rootEntries.size
 
-  val entries: List[EntryName] = rootEntries.map(_.getName)
+  private val entries: List[EntryName] = rootEntries.map(_.getName)
 
   private val aspectRatios: Map[EntryName, Double] = {
     rootEntries
@@ -47,15 +47,15 @@ class CBZImages(file: File) extends AutoCloseable {
       }.toMap
   }
 
-  val widepages: Int = aspectRatios.values.count(_ > 1)
+  private val widepages: Int = aspectRatios.values.count(_ > 1)
 
-  val wideIndices: Set[Int] = entries.indices
+  private val wideIndices: Set[Int] = entries.indices
     .filter(i => aspectRatios.get(entries(i)).exists(_ > 1))
     .toSet
 
   val totalPages: Int = rawPages + widepages
 
-  val pageMap: Map[Int, (Int, Option[Int])] = {
+  private val pageMap: Map[Int, (Int, Option[Int])] = {
     entries.indices.flatMap { rawIdx =>
       if (wideIndices.contains(rawIdx)) {
         Seq((rawIdx, Some(0)), (rawIdx, Some(1)))
@@ -145,20 +145,21 @@ object CBZImages {
     (buffer(pos + 1) & 0xFF) >= 0xC0 &&
     (buffer(pos + 1) & 0xFF) <= 0xCF &&
     buffer(pos + 1) != 0xC4.toByte &&
-    buffer(pos + 1) != 0xC8.toByte
-    && buffer(pos + 1) != 0xCC.toByte)
+    buffer(pos + 1) != 0xC8.toByte &&
+    buffer(pos + 1) != 0xCC.toByte)
 
 
   //TODO: use 1 - side if in RtoL mode
 
   def getHalf(img: BufferedImage, side: Int): BufferedImage = {
     require(side == 0 || side == 1, "Side must be 0 (1st half) or 1 (2nd half)")
+    val signedSide = 1-side
     val fullWidth = img.getWidth
     val halfWidth = fullWidth / 2
     val height = img.getHeight
     val halfImg = new BufferedImage(halfWidth, height, img.getType)
     val g: Graphics2D = halfImg.createGraphics()
-    val srcX = if (side == 0) 0 else fullWidth - halfWidth
+    val srcX = if (signedSide == 0) 0 else fullWidth - halfWidth
     g.drawImage(img, 0, 0, halfWidth, height, srcX, 0, srcX + halfWidth, height, null)
     g.dispose()
     halfImg

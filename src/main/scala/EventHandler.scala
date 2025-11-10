@@ -1,14 +1,15 @@
 package be.afront.reader
 
-import EventHandler.SENSITIVITY
+import EventHandler.{SENSITIVITY, selectFile}
 
-import java.awt.Point
-import java.awt.event.{KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener}
+import java.awt.{FileDialog, Frame, Point}
+import java.awt.event.{ActionEvent, ActionListener, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener}
 import javax.swing.{JFrame, SwingUtilities}
 import java.awt.event.KeyEvent.{VK_2, VK_4, VK_6, VK_8, VK_ADD, VK_DOWN, VK_LEFT, VK_MINUS, VK_NUMPAD2, VK_NUMPAD4, VK_NUMPAD6, VK_NUMPAD8, VK_PLUS, VK_Q, VK_RIGHT, VK_SUBTRACT, VK_UP}
+import java.io.File
 
 class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel)
-  extends KeyListener with MouseMotionListener with MouseListener {
+  extends KeyListener with MouseMotionListener with MouseListener with ActionListener{
 
   var initialMouseDown:Point = null
 
@@ -79,8 +80,31 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel)
   override def mouseEntered(e: MouseEvent): Unit = {}
 
   override def mouseExited(e: MouseEvent): Unit = {}
+
+  override def actionPerformed(event: ActionEvent): Unit = {
+    event.getActionCommand match {
+      case "Open" => 
+        updateState(ReaderState(selectFile("select 1st comic"), selectFile("select 2nd comic")))
+      case _ => println("unimplemented command "+ event.getActionCommand)
+    }
+  }
 }
 
 object EventHandler {
   val SENSITIVITY = 0.005
+
+  def selectFile(prompt: String): File = {
+    val dummyFrame = new Frame()
+    dummyFrame.setSize(0, 0)
+
+    val dialog = new FileDialog(dummyFrame, prompt, FileDialog.LOAD)
+    dialog.setVisible(true)
+
+    val files = dialog.getFiles
+    dialog.dispose()
+    dummyFrame.dispose()
+
+    files(0)
+  }
+
 }
