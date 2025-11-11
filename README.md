@@ -1,19 +1,10 @@
-
-# usage
-
-DuoCBZReader width height path_to_comic1 path_to_comic2
-
-e.g.
-
-DuoCBZReader 1600 1200 comic.en.cbz comic.jp.cbz
-
 # keys
 
 - q: Quit
 
-- cursor left: previous pages
+- cursor left: previous pages (or next pages in left to right mode)
 
-- cursor right: next pages
+- cursor right: next pages (or previous pages in left to right mode)
 
 - cursor up: zoom in
 

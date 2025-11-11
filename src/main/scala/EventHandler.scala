@@ -7,6 +7,7 @@ import java.awt.event.{ActionEvent, ActionListener, KeyEvent, KeyListener, Mouse
 import javax.swing.{JFrame, SwingUtilities}
 import java.awt.event.KeyEvent.{VK_2, VK_4, VK_6, VK_8, VK_ADD, VK_DOWN, VK_LEFT, VK_MINUS, VK_NUMPAD2, VK_NUMPAD4, VK_NUMPAD6, VK_NUMPAD8, VK_PLUS, VK_Q, VK_RIGHT, VK_SUBTRACT, VK_UP}
 import java.io.File
+import java.awt.event.ItemEvent.SELECTED
 
 class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel)
   extends KeyListener with MouseMotionListener with MouseListener with ActionListener{
@@ -32,8 +33,8 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel)
 
   private def stateMachine(keyCode: Int, panel1: ImagePanel): Option[ReaderState] = {
     keyCode match {
-      case VK_RIGHT => Some(panel1.currentState.nextPage)
-      case VK_LEFT => Some(panel1.currentState.prevPage)
+      case VK_RIGHT => Some(panel1.currentState.right)
+      case VK_LEFT => Some(panel1.currentState.left)
       case VK_UP => Some(panel1.currentState.zoomIn)
       case VK_DOWN => Some(panel1.currentState.zoomOut)
 
@@ -88,6 +89,9 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel)
       case _ => println("unimplemented command "+ event.getActionCommand)
     }
   }
+
+  def directionChange(newState:Int):Unit =
+    updateState(panel1.currentState.setDirection(if(newState == SELECTED) 1 else 0))
 }
 
 object EventHandler {

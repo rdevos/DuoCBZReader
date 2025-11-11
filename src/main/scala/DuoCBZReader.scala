@@ -1,29 +1,30 @@
 package be.afront.reader
 
-import java.awt.event.{ActionEvent, ActionListener}
-import java.awt.{FileDialog, Frame, GridLayout, Menu, MenuBar, MenuItem}
+import java.awt.event.{ItemEvent, ItemListener}
+import java.awt.{CheckboxMenuItem, GridLayout, Menu, MenuBar, MenuItem, Toolkit}
 import java.io.File
-import javax.swing.{JFrame, JMenu, JMenuBar, JMenuItem}
+import javax.swing.JFrame
 import javax.swing.WindowConstants.EXIT_ON_CLOSE
 import EventHandler.selectFile
+
 object DuoCBZReader {
 
   case class Args(width:Int, height:Int, cbzPath1:File, cbzPath2:File)
 
   def main(args: Array[String]): Unit = {
 
-    val parsedArgs = parseArgs(args)
-    val state = ReaderState(parsedArgs.cbzPath1, parsedArgs.cbzPath2)
+    val args:Args = initialArgs()
+    val state = ReaderState(args.cbzPath1, args.cbzPath2)
 
     val frame = new JFrame("CBZ Reader")
-    frame.setSize(parsedArgs.width, parsedArgs.height)
+    frame.setSize(args.width, args.height)
     frame.setUndecorated(true)
     frame.setDefaultCloseOperation(EXIT_ON_CLOSE)
     frame.setResizable(false)
     frame.setLayout(new GridLayout(1, 2))
 
-    val panel1 = new ImagePanel(state, 1)
-    val panel2 = new ImagePanel(state, 2)
+    val panel1 = new ImagePanel(state, 0)
+    val panel2 = new ImagePanel(state, 1)
     frame.add(panel1)
     frame.add(panel2)
 
@@ -45,6 +46,10 @@ object DuoCBZReader {
     val openItem = new MenuItem("Open")
     openItem.addActionListener(handler)
     fileMenu.add(openItem)
+    val leftToRight = new CheckboxMenuItem("Left To Right")
+    leftToRight.setState(false)
+    fileMenu.add(leftToRight)
+    leftToRight.addItemListener((e: ItemEvent) => handler.directionChange(e.getStateChange))
     menuBar.add(fileMenu)
     menuBar
   }
@@ -58,26 +63,10 @@ object DuoCBZReader {
     file
   }
   
-  private def parseArgs(args: Array[String]):Args = {
-    if (args.length == 0) {
-      //TODO: base width and height on screen size
-      Args(1600, 1100, selectFile("select left comic"), selectFile("select right comic"))
-    } else if (args.length != 4) {
-      println("Usage: DuoCBZReader <width> <height> <cbzPath1> <cbzPath2>")
-      sys.exit(1)
-    } else {
-
-      val w = try args(0).toInt catch {
-        case _: NumberFormatException => sys.exit(1)
-      }
-      val h = try args(1).toInt catch {
-        case _: NumberFormatException => sys.exit(1)
-      }
-      Args(w, h, checkFileOrExit(args(2),2), checkFileOrExit(args(3),2))
-    }
-  }
-  
-  private def noArguments(args: Array[String]):Boolean =
-    args.length == 0
+  private def initialArgs():Args =
+    val screenSize = Toolkit.getDefaultToolkit.getScreenSize
+    val width = screenSize.getWidth.toInt
+    val height = screenSize.getHeight.toInt
+    Args(width, height, selectFile("select left comic"), selectFile("select right comic"))
 }
 

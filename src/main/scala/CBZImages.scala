@@ -98,7 +98,10 @@ class CBZImages(file: File) extends AutoCloseable {
 
   private val cache: mutable.Map[Int, BufferedImage] = mutable.Map.empty
 
-  def getImage(page: Int): BufferedImage = {
+  def partiallyClearCache():Unit =
+    pageMap.collect { case (page, (raw, Some(side))) => page }.foreach(cache.remove)
+
+  def getImage(page: Int, direction:Int): BufferedImage = {
 
     if (page < 0 || page >= totalPages) {
       throw new IndexOutOfBoundsException(s"Page index $page out of bounds [0, ${totalPages - 1}]")
@@ -112,7 +115,7 @@ class CBZImages(file: File) extends AutoCloseable {
       }.getOrElse(null)
       val img = optSide match {
         case None => fullImg
-        case Some(side) => getHalf(fullImg, side)
+        case Some(side) => getHalf(fullImg, side, direction)
       }
 
       if(img == null) 
@@ -149,11 +152,8 @@ object CBZImages {
     buffer(pos + 1) != 0xCC.toByte)
 
 
-  //TODO: use 1 - side if in RtoL mode
-
-  def getHalf(img: BufferedImage, side: Int): BufferedImage = {
-    require(side == 0 || side == 1, "Side must be 0 (1st half) or 1 (2nd half)")
-    val signedSide = 1-side
+  def getHalf(img: BufferedImage, side: Int, direction: Int): BufferedImage = {
+    val signedSide = if (direction==0) side else 1-side
     val fullWidth = img.getWidth
     val halfWidth = fullWidth / 2
     val height = img.getHeight

@@ -27,41 +27,51 @@ case class PartialState(
   def prevPage: (PartialState,Boolean) =
     pageChange(checkPage(currentPage - 1))
 
-  def getCurrentImage: Option[BufferedImage] =
+  def getCurrentImage(direction:Int): Option[BufferedImage] =
     if (currentPage >= 0 && currentPage < pageCount) {
-      Some(images.getImage(currentPage))
+      Some(images.getImage(currentPage, direction))
     } else {
       None
     }
 
+  def partiallyClearCache(): Unit =
+    images.partiallyClearCache()  
+  
   override def close(): Unit =
     images.close()
 }
 
 case class ReaderState(
-   stateLeft: PartialState,
-   stateRight: PartialState,
+   state1: PartialState,
+   state2: PartialState,
    zoomLevel: Int,
    hs: Double,
-   vs: Double
+   vs: Double,
+   direction:Int                   
 ) extends AutoCloseable {
   
   private def checkScroll(pos: Double): Double =
     math.max(0.0, math.min(1.0, pos))
 
   def this(images1: CBZImages, images2: CBZImages) =
-    this(new PartialState(images1), new PartialState(images2), 0, 0.5, 0.5)
+    this(new PartialState(images1), new PartialState(images2), 0, 0.5, 0.5, 0)
 
   def zoomFactor:Double = pow(1.5, zoomLevel)
 
+  def right:ReaderState =
+    if(direction == 0) nextPage else prevPage
+
+  def left:ReaderState =
+    if(direction == 0) prevPage else nextPage
+  
   def nextPage: ReaderState = {
-    val newLeftState = stateLeft.nextPage
-    if(!newLeftState._2) this else copy(stateLeft = newLeftState._1, stateRight = stateRight.nextPage._1, hs = 0.5, vs = 0.0)
+    val newState1 = state1.nextPage
+    if(!newState1._2) this else copy(state1 = newState1._1, state2 = state2.nextPage._1, hs = 0.5, vs = 0.0)
   }
 
   def prevPage: ReaderState = {
-    val newLeftState = stateLeft.prevPage
-    if(!newLeftState._2) this else copy(stateLeft = newLeftState._1, stateRight = stateRight.prevPage._1, hs = 0.5, vs = 0.0)
+    val newState1 = state1.prevPage
+    if(!newState1._2) this else copy(state1 = newState1._1, state2 = state2.prevPage._1, hs = 0.5, vs = 0.0)
   }
 
   def zoomIn: ReaderState = copy(zoomLevel =
@@ -70,9 +80,9 @@ case class ReaderState(
   def zoomOut: ReaderState = copy(zoomLevel =
     zoomLevel - 1)
 
-  def minus: ReaderState = copy(stateRight = stateRight.prevPage._1)
+  def minus: ReaderState = copy(state2 = state2.prevPage._1)
 
-  def plus: ReaderState = copy(stateRight = stateRight.nextPage._1)
+  def plus: ReaderState = copy(state2 = state2.nextPage._1)
 
   def conditionalScroll(scrolled: => ReaderState):ReaderState =
     if(zoomLevel>0) scrolled else this
@@ -98,12 +108,20 @@ case class ReaderState(
   def scrollTo(px:Double, py:Double): ReaderState =
     copy(hs=checkScroll(px), vs=checkScroll(py))
 
-  def getCurrentImage(column:Int): Option[BufferedImage] =
-    if (column==1) stateLeft.getCurrentImage else if(column==2) stateRight.getCurrentImage else None
+  def getCurrentImage(column:Int): Option[BufferedImage] = {
+    val signedColumn = if(direction==0) column else 1-column
+    if (signedColumn==0) state1.getCurrentImage(direction) else if(signedColumn==1) state2.getCurrentImage(direction) else None
+  }
+
+  def setDirection(dir:Int): ReaderState = {
+    state1.partiallyClearCache()
+    state2.partiallyClearCache()
+    copy(direction = dir)
+  }
 
   override def close(): Unit = {
-    stateLeft.close()
-    stateRight.close()
+    state1.close()
+    state2.close()
   }
 }
 
