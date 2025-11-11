@@ -11,3 +11,15 @@ lazy val root = (project in file("."))
     name := "DuoCBZReader",
     idePackagePrefix := Some("be.afront.reader")
   )
+
+Compile / mainClass := Some("be.afront.reader.DuoCBZReader")
+
+import sbtassembly.AssemblyPlugin.autoImport._
+
+
+assembly / assemblyJarName := "duoCBZReader.jar"
+
+assembly / assemblyMergeStrategy := {
+  case PathList("META-INF", _*) => MergeStrategy.discard
+  case x => MergeStrategy.first
+}

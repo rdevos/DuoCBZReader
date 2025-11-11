@@ -1,3 +1,24 @@
+
+# how to run
+
+(assuming java is installed)
+
+## if sources are out of date:
+
+run
+    sbt assembly
+
+this will create
+    target/scala-3.3.6/duoCBZReader.jar
+
+## when duoCBZReader.jar is built 
+
+    java -jar target/scala-3.3.6/duoCBZReader.jar
+or
+    run.sh
+
+
+
 # keys
 
 - q: Quit
