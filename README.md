@@ -31,9 +31,9 @@ or
 
 - cursor up: zoom out
 
-- plus: next right page
+- plus: next page of 2nd comic
 
-- minus: previous right page
+- minus: previous page of 2nd comic
 
 when zoomed in, use mouse drag to scroll or use:
 
