@@ -16,18 +16,18 @@
 
 package be.afront.reader
 
-import CBZImages.{getHalf, isJPGStartOfFrameMarker, readBigEndianInt16, readLittleEndianInt16}
+import CBZImages.{Dimensions, Direction, Part, getDimensions}
+import CBZImages.Part.{First, Latter}
 
 import java.awt.image.BufferedImage
 import org.apache.commons.compress.archivers.zip.{ZipArchiveEntry, ZipFile}
 
 import java.awt.Graphics2D
-import java.io.{BufferedInputStream, File, InputStream}
-import java.nio.ByteBuffer
+import java.io.File
 import javax.imageio.ImageIO
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
-import scala.util.{Try, Using}
+import scala.util.Using
 
 class CBZImages(file: File) extends AutoCloseable {
 
@@ -43,101 +43,63 @@ class CBZImages(file: File) extends AutoCloseable {
 
   type EntryName = String
 
+  type ImageIndex = Int
+
+  type PageIndex = Int
+
+  type Combo = (rawPage: ImageIndex, part:Option[Part])
+
   private val rawPages: Int = rootEntries.size
 
   private val entries: List[EntryName] = rootEntries.map(_.getName)
 
-  private val aspectRatios: Map[EntryName, Double] = {
-    rootEntries
-      .flatMap { entry =>
-        Try {
-          val is = zipFile.getInputStream(entry)
-          Using(new BufferedInputStream(is)) { bis =>
-            val buffer = new Array[Byte](8*1024)
-            val bytesRead = bis.read(buffer)
-            parseDimensions(entry.getName.toLowerCase, buffer, bytesRead)
-          }.get
-        }.toOption.flatten.map { case (w, h) =>
-          entry.getName -> (w.toDouble / h.toDouble)
-        }
-      }.toMap
-  }
+  private val dimensions: Map[EntryName, Dimensions] =
+    (for {
+      entry <- rootEntries
+      d <- getDimensions(zipFile, entry)
+    } yield entry.getName -> d).toMap
 
-  private val widepages: Int = aspectRatios.values.count(_ > 1)
 
-  private val wideIndices: Set[Int] = entries.indices
-    .filter(i => aspectRatios.get(entries(i)).exists(_ > 1))
+  private val wideIndices: Set[ImageIndex] = entries.indices
+    .filter(i => dimensions.get(entries(i)).exists(d => d.width > d.height))
     .toSet
 
-  val totalPages: Int = rawPages + widepages
+  private val widePages: Int = wideIndices.size
 
-  private val pageMap: Map[Int, (Int, Option[Int])] = {
+  val totalPages: Int = rawPages + widePages
+
+  private val pageMap: Map[PageIndex, Combo] = {
     entries.indices.flatMap { rawIdx =>
       if (wideIndices.contains(rawIdx)) {
-        Seq((rawIdx, Some(0)), (rawIdx, Some(1)))
+        Seq((rawIdx, Some(First)), (rawIdx, Some(Latter)))
       } else {
         Seq((rawIdx, None))
       }
-    }.zipWithIndex.map { case ((rawIdx, side), pageIdx) =>
-      pageIdx -> (rawIdx, side)
+    }.zipWithIndex.map { case ((rawIdx, part), pageIdx) =>
+      pageIdx -> (rawIdx, part)
     }.toMap
   }
 
-  private def parseDimensions(name: String, buffer: Array[Byte], len: Int): Option[(Int, Int)] = {
-    if (name.endsWith(".png") || buffer.startsWith(Array(0x89.toByte, 'P', 'N', 'G'))) {
-      // PNG: Width at 16-19 (big-endian), height 20-23
-      val bb = ByteBuffer.wrap(buffer, 16, 8)
-      Some(bb.getInt, bb.getInt)
-    } else if (name.endsWith(".gif") || buffer.startsWith("GIF".getBytes)) {
-      // GIF: Width at 6-7 (little-endian), height 8-9
-      val width = readLittleEndianInt16(buffer, 6)
-      val height = readLittleEndianInt16(buffer, 8)
-      Some(width, height)
-    } else if (name.endsWith(".jpg") || name.endsWith(".jpeg") || buffer.startsWith(Array(0xFF.toByte, 0xD8.toByte))) {
-      // JPEG: Scan for SOF marker
-      var pos = 2
-      while (pos < len - 5) {
-
-        if (isJPGStartOfFrameMarker(buffer, pos)) {
-          val height = readBigEndianInt16(buffer, pos + 5)
-          val width = readBigEndianInt16(buffer, pos + 7)
-          return Some(width, height)
-        }
-        val sizeWithHeader = 2+ readBigEndianInt16(buffer, pos + 2)
-        pos += sizeWithHeader
-      }
-      None
-    } else {
-      None
-    }
-  }
-
-  private val cache: mutable.Map[Int, BufferedImage] = mutable.Map.empty
+  private val cache: mutable.Map[PageIndex, BufferedImage] = mutable.Map.empty
 
   def partiallyClearCache():Unit =
-    pageMap.collect { case (page, (raw, Some(side))) => page }.foreach(cache.remove)
+    pageMap.collect { case (page, (raw, part)) => page }.foreach(cache.remove)
 
-  def getImage(page: Int, direction:Int): BufferedImage = {
+  def getImage(page: Int, direction:Direction): BufferedImage = {
 
     if (page < 0 || page >= totalPages) {
       throw new IndexOutOfBoundsException(s"Page index $page out of bounds [0, ${totalPages - 1}]")
     }
 
     cache.getOrElseUpdate(page, {
-      val (rawIdx, optSide) = pageMap(page)
-      val entry = rootEntries(rawIdx)
+      val combo = pageMap(page)
+      val entry = rootEntries(combo.rawPage)
       val fullImg = Using(zipFile.getInputStream(entry)) { inputStream =>
         ImageIO.read(inputStream)
       }.getOrElse(null)
-      val img = optSide match {
-        case None => fullImg
-        case Some(side) => getHalf(fullImg, side, direction)
-      }
-
-      if(img == null) 
+      if(fullImg == null)
         throw new ImageDecodingException("could not decode file "+entry);
-      
-      img
+      combo.part.map(part => part.ofImage(fullImg, direction)).getOrElse(fullImg)
     })
   }
 
@@ -153,31 +115,51 @@ class CBZImages(file: File) extends AutoCloseable {
 
 object CBZImages {
 
-  def readBigEndianInt16(bytes: Array[Byte], offset: Int = 0): Int =
-    ((bytes(offset) & 0xFF) << 8) | (bytes(offset + 1) & 0xFF)
+  type Dimensions = (width: Int, height: Int)
 
-  def readLittleEndianInt16(bytes: Array[Byte], offset: Int = 0): Int =
-    ((bytes(offset + 1) & 0xFF) << 8) | (bytes(offset) & 0xFF)
-
-  def isJPGStartOfFrameMarker(buffer: Array[Byte], pos:Int):Boolean =
-    (buffer(pos) == 0xFF.toByte &&
-    (buffer(pos + 1) & 0xFF) >= 0xC0 &&
-    (buffer(pos + 1) & 0xFF) <= 0xCF &&
-    buffer(pos + 1) != 0xC4.toByte &&
-    buffer(pos + 1) != 0xC8.toByte &&
-    buffer(pos + 1) != 0xCC.toByte)
-
-
-  def getHalf(img: BufferedImage, side: Int, direction: Int): BufferedImage = {
-    val signedSide = if (direction==0) side else 1-side
-    val fullWidth = img.getWidth
-    val halfWidth = fullWidth / 2
-    val height = img.getHeight
-    val halfImg = new BufferedImage(halfWidth, height, img.getType)
-    val g: Graphics2D = halfImg.createGraphics()
-    val srcX = if (signedSide == 0) 0 else fullWidth - halfWidth
-    g.drawImage(img, 0, 0, halfWidth, height, srcX, 0, srcX + halfWidth, height, null)
-    g.dispose()
-    halfImg
+  enum Side {
+    case Left, Right
   }
+
+  enum Direction {
+    case RightToLeft, LeftToRight
+
+    def sideFor(part:Part):Side = this match {
+      case LeftToRight => if(part == First) Side.Left else Side.Right
+      case RightToLeft => if(part == First) Side.Right else Side.Left
+    }
+  }
+
+  enum Part {
+    case First, Latter
+
+    def ofImage(img: BufferedImage, direction: Direction): BufferedImage = {
+      val fullWidth = img.getWidth
+      val halfWidth = fullWidth / 2
+      val height = img.getHeight
+      val halfImg = new BufferedImage(halfWidth, height, img.getType)
+      val g: Graphics2D = halfImg.createGraphics()
+      val xOffset = if (direction.sideFor(this) == Side.Left) 0 else fullWidth - halfWidth
+      g.drawImage(img, 0, 0, halfWidth, height, xOffset, 0, xOffset + halfWidth, height, null)
+      g.dispose()
+      halfImg
+    }
+  }
+
+  def getDimensions(zipFile: ZipFile, entry: ZipArchiveEntry): Option[Dimensions] =
+    Using(zipFile.getInputStream(entry)) { in =>
+      Using(ImageIO.createImageInputStream(in)) { iis =>
+        val readers = ImageIO.getImageReaders(iis)
+        if (readers.hasNext) {
+          val reader = readers.next()
+          reader.setInput(iis)
+          val width = reader.getWidth(0)
+          val height = reader.getHeight(0)
+          reader.dispose()
+          (width = width, height = height)
+        } else {
+          throw new IllegalArgumentException(s"No reader for entry ${entry.getName}")
+        }
+      }.toOption
+    }.toOption.flatten
 }

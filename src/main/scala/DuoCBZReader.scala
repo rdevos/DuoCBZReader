@@ -62,10 +62,10 @@ object DuoCBZReader {
     val openItem = new MenuItem("Open")
     openItem.addActionListener(handler)
     fileMenu.add(openItem)
-    val leftToRight = new CheckboxMenuItem("Left To Right")
-    leftToRight.setState(false)
-    fileMenu.add(leftToRight)
-    leftToRight.addItemListener((e: ItemEvent) => handler.directionChange(e.getStateChange))
+    val rightToLeft = new CheckboxMenuItem("Right To Left")
+    rightToLeft.setState(false)
+    fileMenu.add(rightToLeft)
+    rightToLeft.addItemListener((e: ItemEvent) => handler.directionChange(e.getStateChange))
     menuBar.add(fileMenu)
     menuBar
   }

@@ -16,15 +16,20 @@
 
 package be.afront.reader
 
-import ReaderState.SCROLL_STEP
+import ReaderState.{SCROLL_STEP, ZOOM_STEP}
+
+import CBZImages.Direction
+import CBZImages.Direction.LeftToRight
 
 import java.awt.image.BufferedImage
 import java.io.File
 import scala.math.pow
 
+type PageSkip = (state:PartialState, success:Boolean)
+
 case class PartialState(
   images: CBZImages,
-  currentPage: Int,
+  currentPage: Int
 ) extends AutoCloseable {
   private val pageCount = images.totalPages
 
@@ -34,16 +39,18 @@ case class PartialState(
   private def checkPage(page: Int): Int =
     math.max(0, math.min(pageCount - 1, page))
 
-  def pageChange(newPage:Int):(PartialState,Boolean) =
-    if(newPage == currentPage) (this,false) else (copy(currentPage = newPage),true)
-  
-  def nextPage: (PartialState,Boolean) =
+  def pageChange(newPage:Int):PageSkip = {
+    if(newPage == currentPage) (state=this, success=false) else
+      (state=copy(currentPage = newPage), success=true)
+  }
+
+  def nextPage: PageSkip =
     pageChange(checkPage(currentPage + 1))
 
-  def prevPage: (PartialState,Boolean) =
+  def prevPage: PageSkip =
     pageChange(checkPage(currentPage - 1))
 
-  def getCurrentImage(direction:Int): Option[BufferedImage] =
+  def getCurrentImage(direction:Direction): Option[BufferedImage] =
     if (currentPage >= 0 && currentPage < pageCount) {
       Some(images.getImage(currentPage, direction))
     } else {
@@ -63,31 +70,33 @@ case class ReaderState(
    zoomLevel: Int,
    hs: Double,
    vs: Double,
-   direction:Int                   
+   direction:Direction                   
 ) extends AutoCloseable {
   
   private def checkScroll(pos: Double): Double =
     math.max(0.0, math.min(1.0, pos))
 
   def this(images1: CBZImages, images2: CBZImages) =
-    this(new PartialState(images1), new PartialState(images2), 0, 0.5, 0.5, 0)
+    this(new PartialState(images1), new PartialState(images2), 0, 0.5, 0.5, LeftToRight)
 
-  def zoomFactor:Double = pow(1.5, zoomLevel)
+  def zoomFactor:Double = pow(ZOOM_STEP, zoomLevel)
 
   def right:ReaderState =
-    if(direction == 0) nextPage else prevPage
+    if(direction == LeftToRight) nextPage else prevPage
 
   def left:ReaderState =
-    if(direction == 0) prevPage else nextPage
+    if(direction == LeftToRight) prevPage else nextPage
   
   def nextPage: ReaderState = {
     val newState1 = state1.nextPage
-    if(!newState1._2) this else copy(state1 = newState1._1, state2 = state2.nextPage._1, hs = 0.5, vs = 0.0)
+    if(!newState1.success) this else
+      copy(state1 = newState1.state, state2 = state2.nextPage.state, hs = 0.5, vs = 0.0)
   }
 
   def prevPage: ReaderState = {
     val newState1 = state1.prevPage
-    if(!newState1._2) this else copy(state1 = newState1._1, state2 = state2.prevPage._1, hs = 0.5, vs = 0.0)
+    if(!newState1.success) this else
+      copy(state1 = newState1.state, state2 = state2.prevPage.state, hs = 0.5, vs = 0.0)
   }
 
   def zoomIn: ReaderState = copy(zoomLevel =
@@ -96,9 +105,9 @@ case class ReaderState(
   def zoomOut: ReaderState = copy(zoomLevel =
     zoomLevel - 1)
 
-  def minus: ReaderState = copy(state2 = state2.prevPage._1)
+  def minus: ReaderState = copy(state2 = state2.prevPage.state)
 
-  def plus: ReaderState = copy(state2 = state2.nextPage._1)
+  def plus: ReaderState = copy(state2 = state2.nextPage.state)
 
   def conditionalScroll(scrolled: => ReaderState):ReaderState =
     if(zoomLevel>0) scrolled else this
@@ -125,11 +134,12 @@ case class ReaderState(
     copy(hs=checkScroll(px), vs=checkScroll(py))
 
   def getCurrentImage(column:Int): Option[BufferedImage] = {
-    val signedColumn = if(direction==0) column else 1-column
-    if (signedColumn==0) state1.getCurrentImage(direction) else if(signedColumn==1) state2.getCurrentImage(direction) else None
+    val signedColumn = if(direction==LeftToRight) column else 1-column
+    if (signedColumn==0) state1.getCurrentImage(direction) else 
+      if(signedColumn==1) state2.getCurrentImage(direction) else None
   }
 
-  def setDirection(dir:Int): ReaderState = {
+  def setDirection(dir:Direction): ReaderState = {
     state1.partiallyClearCache()
     state2.partiallyClearCache()
     copy(direction = dir)
@@ -144,6 +154,8 @@ case class ReaderState(
 object ReaderState {
 
   def SCROLL_STEP = 0.125
+  
+  def ZOOM_STEP = 1.2
   
   def apply(file1:File, file2:File): ReaderState =
     new ReaderState(new CBZImages(file1), new CBZImages(file2))

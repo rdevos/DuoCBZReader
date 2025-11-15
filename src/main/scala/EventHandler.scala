@@ -18,6 +18,8 @@ package be.afront.reader
 
 import EventHandler.{SENSITIVITY, selectFile}
 
+import CBZImages.Direction.{LeftToRight, RightToLeft}
+
 import java.awt.{FileDialog, Frame, Point}
 import java.awt.event.{ActionEvent, ActionListener, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener}
 import javax.swing.{JFrame, SwingUtilities}
@@ -107,7 +109,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel)
   }
 
   def directionChange(newState:Int):Unit =
-    updateState(panel1.currentState.setDirection(if(newState == SELECTED) 1 else 0))
+    updateState(panel1.currentState.setDirection(if(newState == SELECTED) RightToLeft else LeftToRight ))
 }
 
 object EventHandler {
