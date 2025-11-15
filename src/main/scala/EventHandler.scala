@@ -16,21 +16,33 @@
 
 package be.afront.reader
 
-import EventHandler.{SENSITIVITY, selectFile}
-
+import EventHandler.{SENSITIVITY, WHEEL_SENSITIVITY, selectFile}
 import CBZImages.Direction.{LeftToRight, RightToLeft}
 
 import java.awt.{FileDialog, Frame, Point}
-import java.awt.event.{ActionEvent, ActionListener, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener}
+import java.awt.event.{ActionEvent, ActionListener, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener, MouseWheelEvent, MouseWheelListener}
 import javax.swing.{JFrame, SwingUtilities}
 import java.awt.event.KeyEvent.{VK_2, VK_4, VK_6, VK_8, VK_ADD, VK_DOWN, VK_LEFT, VK_MINUS, VK_NUMPAD2, VK_NUMPAD4, VK_NUMPAD6, VK_NUMPAD8, VK_PLUS, VK_Q, VK_RIGHT, VK_SUBTRACT, VK_UP}
 import java.io.File
 import java.awt.event.ItemEvent.SELECTED
 
 class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel)
-  extends KeyListener with MouseMotionListener with MouseListener with ActionListener{
+  extends KeyListener
+    with MouseMotionListener
+    with MouseWheelListener
+    with MouseListener
+    with ActionListener{
 
-  var initialMouseDown:Point = null
+  private def init():Unit = {
+    frame.addKeyListener(this)
+    frame.addMouseMotionListener(this)
+    frame.addMouseListener(this)
+    frame.addMouseWheelListener(this)
+  }
+
+  var initialMouseDown: (p:Point, h:Double, v:Double) = null
+
+  init()
 
   override def keyPressed(e: KeyEvent): Unit = {
     stateMachine(e.getKeyCode, panel1) match {
@@ -74,7 +86,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel)
   override def keyReleased(e: KeyEvent): Unit = {}
 
   override def mousePressed(e: MouseEvent): Unit = {
-    initialMouseDown = e.getPoint
+    initialMouseDown = (e.getPoint, panel1.currentState.hs, panel1.currentState.vs)
   }
 
   override def mouseReleased(e: MouseEvent): Unit = {
@@ -84,9 +96,12 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel)
   override def mouseDragged(e: MouseEvent): Unit = {
     if(initialMouseDown!=null) {
       // signed for 'normal' dragging, image follows mouse
-      val dx = initialMouseDown.x - e.getX
-      val dy = initialMouseDown.y - e.getY
-      updateState(panel1.currentState.scrollTo(SENSITIVITY*dx,SENSITIVITY*dy))
+      val dx = initialMouseDown.p.x - e.getX
+      val dy = initialMouseDown.p.y - e.getY
+      val multiplier = SENSITIVITY/panel1.currentState.zoomFactor
+      updateState(panel1.currentState.scrollTo(
+        initialMouseDown.h + multiplier*dx,
+        initialMouseDown.v + multiplier*dy))
     } else {
       // initialMouseDown not available for drag event
     }
@@ -110,10 +125,16 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel)
 
   def directionChange(newState:Int):Unit =
     updateState(panel1.currentState.setDirection(if(newState == SELECTED) RightToLeft else LeftToRight ))
+
+  override def mouseWheelMoved(e: MouseWheelEvent): Unit =
+    updateState(panel1.currentState.scrollVertical(e.getWheelRotation * WHEEL_SENSITIVITY))
 }
 
 object EventHandler {
   val SENSITIVITY = 0.005
+
+  val WHEEL_SENSITIVITY = 0.01
+
 
   def selectFile(prompt: String): File = {
     val dummyFrame = new Frame()

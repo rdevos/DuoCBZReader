@@ -133,9 +133,12 @@ case class ReaderState(
   def scrollTo(px:Double, py:Double): ReaderState =
     copy(hs=checkScroll(px), vs=checkScroll(py))
 
+  def scrollVertical(dy: Double): ReaderState =
+    scrollTo(hs, vs+dy)
+
   def getCurrentImage(column:Int): Option[BufferedImage] = {
     val signedColumn = if(direction==LeftToRight) column else 1-column
-    if (signedColumn==0) state1.getCurrentImage(direction) else 
+    if (signedColumn==0) state1.getCurrentImage(direction) else
       if(signedColumn==1) state2.getCurrentImage(direction) else None
   }
 

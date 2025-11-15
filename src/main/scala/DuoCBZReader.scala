@@ -47,15 +47,10 @@ object DuoCBZReader {
     val handler = new EventHandler(frame, panel1, panel2)
 
     frame.setMenuBar(initMenus(handler))
-
-    frame.addKeyListener(handler)
-    frame.addMouseMotionListener(handler)
-    frame.addMouseListener(handler)
-
     frame.setVisible(true)
     frame.requestFocusInWindow()
   }
-
+  
   private def initMenus(handler:EventHandler):MenuBar = {
     val menuBar = new MenuBar()
     val fileMenu = new Menu("File")
