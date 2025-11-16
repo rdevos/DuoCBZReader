@@ -52,7 +52,7 @@ class CBZImages(file: File) extends AutoCloseable {
   private val rawPages: Int = rootEntries.size
 
   private val entries: List[EntryName] = rootEntries.map(_.getName)
-
+  
   private val dimensions: Map[EntryName, Dimensions] =
     (for {
       entry <- rootEntries
@@ -109,7 +109,8 @@ class CBZImages(file: File) extends AutoCloseable {
 
   private def isImageEntry(name: String): Boolean = {
     val lower = name.toLowerCase
-    lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") || lower.endsWith(".gif")
+    (lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") || lower.endsWith(".gif")) &&
+      !name.contains("__MACOSX")
   }
 }
 

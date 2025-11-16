@@ -44,6 +44,9 @@ case class PartialState(
       (state=copy(currentPage = newPage), success=true)
   }
 
+  def getPageIndicator:String =
+    s"${currentPage+1}/${pageCount}"
+
   def nextPage: PageSkip =
     pageChange(checkPage(currentPage + 1))
 
@@ -141,6 +144,9 @@ case class ReaderState(
     if (signedColumn==0) state1.getCurrentImage(direction) else
       if(signedColumn==1) state2.getCurrentImage(direction) else None
   }
+
+  def getPageIndicator(column:Int):String =
+    (if(column==0) state1 else state2).getPageIndicator
 
   def setDirection(dir:Direction): ReaderState = {
     state1.partiallyClearCache()

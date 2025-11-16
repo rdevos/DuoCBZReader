@@ -16,7 +16,9 @@
 
 package be.afront.reader
 
-import java.awt.{Graphics, Graphics2D}
+import be.afront.reader.ImagePanel.indicatorFont
+
+import java.awt.{Color, Font, Graphics, Graphics2D}
 import java.awt.RenderingHints.{KEY_INTERPOLATION, VALUE_INTERPOLATION_BILINEAR}
 import javax.swing.JPanel
 
@@ -56,6 +58,14 @@ class ImagePanel(initialState: ReaderState, column:Int) extends JPanel {
       val y = (state.vs * deltaY).toInt
 
       g2d.drawImage(img, x, y, scaledWidth, scaledHeight, this)
+
+      g2d.setColor(Color.BLACK)
+      g2d.setFont(indicatorFont)
+      g2d.drawString(state.getPageIndicator(column), 20, panelHeight-20)
     }
   }
+}
+
+object ImagePanel {
+  private val indicatorFont: Font = new Font("SansSerif", Font.PLAIN, 12)
 }

@@ -17,7 +17,7 @@
 package be.afront.reader
 
 import java.awt.event.{ItemEvent, ItemListener}
-import java.awt.{CheckboxMenuItem, GridLayout, Menu, MenuBar, MenuItem, Toolkit}
+import java.awt.{CheckboxMenuItem, GraphicsEnvironment, GridLayout, Menu, MenuBar, MenuItem, Rectangle, Toolkit}
 import java.io.File
 import javax.swing.JFrame
 import javax.swing.WindowConstants.EXIT_ON_CLOSE
@@ -75,9 +75,10 @@ object DuoCBZReader {
   }
   
   private def initialArgs():Args =
-    val screenSize = Toolkit.getDefaultToolkit.getScreenSize
-    val width = screenSize.getWidth.toInt
-    val height = screenSize.getHeight.toInt
+    val ge = GraphicsEnvironment.getLocalGraphicsEnvironment
+    val usableBounds: Rectangle = ge.getMaximumWindowBounds
+    val width = usableBounds.getWidth.toInt
+    val height = usableBounds.getHeight.toInt
     Args(width, height, selectFile("select left comic"), selectFile("select right comic"))
 }
 
