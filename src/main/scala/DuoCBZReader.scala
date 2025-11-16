@@ -23,7 +23,7 @@ import javax.swing.JFrame
 import javax.swing.WindowConstants.EXIT_ON_CLOSE
 import EventHandler.selectFile
 
-import be.afront.reader.CBZImages.Direction
+import CBZImages.Direction
 
 object DuoCBZReader {
 
@@ -62,14 +62,14 @@ object DuoCBZReader {
     fileMenu.add(checkBoxMenu("Right To Left", false,
       (e: ItemEvent) => handler.directionChange(e.getStateChange)))
     fileMenu.add(checkBoxMenu("Show Page Numbers", true,
-      (e: ItemEvent) => handler.directionChange(e.getStateChange)))
+      (e: ItemEvent) => handler.togglePageNumbers(e.getStateChange)))
     menuBar.add(fileMenu)
     menuBar
   }
 
   private def checkBoxMenu(content:String, value:Boolean, itemListener:ItemListener):MenuItem = {
     val menuItem = new CheckboxMenuItem(content)
-    menuItem.setState(false)
+    menuItem.setState(value)
     menuItem.addItemListener(itemListener)
     menuItem
   }
