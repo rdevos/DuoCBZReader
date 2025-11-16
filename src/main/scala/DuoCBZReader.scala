@@ -23,6 +23,8 @@ import javax.swing.JFrame
 import javax.swing.WindowConstants.EXIT_ON_CLOSE
 import EventHandler.selectFile
 
+import be.afront.reader.CBZImages.Direction
+
 object DuoCBZReader {
 
   case class Args(width:Int, height:Int, cbzPath1:File, cbzPath2:File)
@@ -30,7 +32,7 @@ object DuoCBZReader {
   def main(args: Array[String]): Unit = {
 
     val args:Args = initialArgs()
-    val state = ReaderState(args.cbzPath1, args.cbzPath2)
+    val state = ReaderState(args.cbzPath1, args.cbzPath2, Direction.LeftToRight, true)
 
     val frame = new JFrame("CBZ Reader")
     frame.setSize(args.width, args.height)
@@ -44,7 +46,7 @@ object DuoCBZReader {
     frame.add(panel1)
     frame.add(panel2)
 
-    val handler = new EventHandler(frame, panel1, panel2)
+    val handler = new EventHandler(frame, panel1, panel2, state)
 
     frame.setMenuBar(initMenus(handler))
     frame.setVisible(true)
@@ -57,12 +59,19 @@ object DuoCBZReader {
     val openItem = new MenuItem("Open")
     openItem.addActionListener(handler)
     fileMenu.add(openItem)
-    val rightToLeft = new CheckboxMenuItem("Right To Left")
-    rightToLeft.setState(false)
-    fileMenu.add(rightToLeft)
-    rightToLeft.addItemListener((e: ItemEvent) => handler.directionChange(e.getStateChange))
+    fileMenu.add(checkBoxMenu("Right To Left", false,
+      (e: ItemEvent) => handler.directionChange(e.getStateChange)))
+    fileMenu.add(checkBoxMenu("Show Page Numbers", true,
+      (e: ItemEvent) => handler.directionChange(e.getStateChange)))
     menuBar.add(fileMenu)
     menuBar
+  }
+
+  private def checkBoxMenu(content:String, value:Boolean, itemListener:ItemListener):MenuItem = {
+    val menuItem = new CheckboxMenuItem(content)
+    menuItem.setState(false)
+    menuItem.addItemListener(itemListener)
+    menuItem
   }
 
   private def checkFileOrExit(path:String, exitCode:Int):File = {

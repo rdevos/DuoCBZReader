@@ -26,7 +26,7 @@ import java.awt.event.KeyEvent.{VK_2, VK_4, VK_6, VK_8, VK_ADD, VK_DOWN, VK_LEFT
 import java.io.File
 import java.awt.event.ItemEvent.SELECTED
 
-class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel)
+class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel, initialState:ReaderState)
   extends KeyListener
     with MouseMotionListener
     with MouseWheelListener
@@ -39,6 +39,8 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel)
     frame.addMouseListener(this)
     frame.addMouseWheelListener(this)
   }
+  
+  var state:ReaderState = initialState
 
   var initialMouseDown: (p:Point, h:Double, v:Double) = null
 
@@ -54,6 +56,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel)
   }
   
   private def updateState(newState:ReaderState): Unit = {
+    state = newState
     SwingUtilities.invokeLater { () =>
       panel1.setNewState(newState)
       panel2.setNewState(newState)
@@ -63,21 +66,21 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel)
 
   private def stateMachine(keyCode: Int, panel1: ImagePanel): Option[ReaderState] = {
     keyCode match {
-      case VK_RIGHT => Some(panel1.currentState.right)
-      case VK_LEFT => Some(panel1.currentState.left)
-      case VK_UP => Some(panel1.currentState.zoomIn)
-      case VK_DOWN => Some(panel1.currentState.zoomOut)
+      case VK_RIGHT => Some(state.right)
+      case VK_LEFT => Some(state.left)
+      case VK_UP => Some(state.zoomIn)
+      case VK_DOWN => Some(state.zoomOut)
 
-      case VK_MINUS | VK_SUBTRACT => Some(panel1.currentState.minus)
-      case VK_PLUS | VK_ADD=> Some(panel1.currentState.plus)
+      case VK_MINUS | VK_SUBTRACT => Some(state.minus)
+      case VK_PLUS | VK_ADD=> Some(state.plus)
 
-      case VK_8 | VK_NUMPAD8 => Some(panel1.currentState.scrollUp)
-      case VK_2 | VK_NUMPAD2 => Some(panel1.currentState.scrollDown)
-      case VK_4 | VK_NUMPAD4 => Some(panel1.currentState.scrollLeft)
-      case VK_6 | VK_NUMPAD6 => Some(panel1.currentState.scrollRight)
+      case VK_8 | VK_NUMPAD8 => Some(state.scrollUp)
+      case VK_2 | VK_NUMPAD2 => Some(state.scrollDown)
+      case VK_4 | VK_NUMPAD4 => Some(state.scrollLeft)
+      case VK_6 | VK_NUMPAD6 => Some(state.scrollRight)
 
       case VK_Q => None
-      case _ => Some(panel1.currentState)
+      case _ => Some(state)
     }
   }
 
@@ -86,7 +89,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel)
   override def keyReleased(e: KeyEvent): Unit = {}
 
   override def mousePressed(e: MouseEvent): Unit = {
-    initialMouseDown = (e.getPoint, panel1.currentState.hs, panel1.currentState.vs)
+    initialMouseDown = (e.getPoint, state.hs, state.vs)
   }
 
   override def mouseReleased(e: MouseEvent): Unit = {
@@ -98,8 +101,8 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel)
       // signed for 'normal' dragging, image follows mouse
       val dx = initialMouseDown.p.x - e.getX
       val dy = initialMouseDown.p.y - e.getY
-      val multiplier = SENSITIVITY/panel1.currentState.zoomFactor
-      updateState(panel1.currentState.scrollTo(
+      val multiplier = SENSITIVITY/state.zoomFactor
+      updateState(state.scrollTo(
         initialMouseDown.h + multiplier*dx,
         initialMouseDown.v + multiplier*dy))
     } else {
@@ -111,8 +114,8 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel)
 
   override def mouseClicked(e: MouseEvent): Unit = {
     e.getButton match {
-      case MouseEvent.BUTTON1 => updateState(panel1.currentState.nextPage)
-      case MouseEvent.BUTTON3 => updateState(panel1.currentState.prevPage)
+      case MouseEvent.BUTTON1 => updateState(state.nextPage)
+      case MouseEvent.BUTTON3 => updateState(state.prevPage)
       case _ =>
     }
   }
@@ -124,16 +127,21 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel)
   override def actionPerformed(event: ActionEvent): Unit = {
     event.getActionCommand match {
       case "Open" => 
-        updateState(ReaderState(selectFile("select 1st comic"), selectFile("select 2nd comic")))
+        updateState(ReaderState(selectFile("select 1st comic"), selectFile("select 2nd comic"),
+          state.direction, state.showPageNumbers))
       case _ => println("unimplemented command "+ event.getActionCommand)
     }
   }
 
   def directionChange(newState:Int):Unit =
-    updateState(panel1.currentState.setDirection(if(newState == SELECTED) RightToLeft else LeftToRight ))
+    updateState(state.setDirection(if(newState == SELECTED) RightToLeft else LeftToRight ))
+
+  def togglePageNumbers(newState: Int): Unit =
+    updateState(state.setShowPageNumbers(newState == SELECTED))
+
 
   override def mouseWheelMoved(e: MouseWheelEvent): Unit =
-    updateState(panel1.currentState.scrollVertical(e.getWheelRotation * WHEEL_SENSITIVITY))
+    updateState(state.scrollVertical(e.getWheelRotation * WHEEL_SENSITIVITY))
 }
 
 object EventHandler {

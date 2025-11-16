@@ -27,12 +27,9 @@ class ImagePanel(initialState: ReaderState, column:Int) extends JPanel {
   private var state = initialState
 
   def setNewState(newState: ReaderState): Unit = {
-    this.state = newState
+    state = newState
     state.getCurrentImage(column)
   }
-  
-  def currentState:ReaderState =
-    state  
   
   override def paintComponent(g: Graphics): Unit = {
     super.paintComponent(g)
@@ -59,9 +56,11 @@ class ImagePanel(initialState: ReaderState, column:Int) extends JPanel {
 
       g2d.drawImage(img, x, y, scaledWidth, scaledHeight, this)
 
-      g2d.setColor(Color.BLACK)
-      g2d.setFont(indicatorFont)
-      g2d.drawString(state.getPageIndicator(column), 20, panelHeight-20)
+      if(state.showPageNumbers) {
+        g2d.setColor(Color.BLACK)
+        g2d.setFont(indicatorFont)
+        g2d.drawString(state.getPageIndicator(column), 20, panelHeight - 20)
+      }
     }
   }
 }

@@ -73,14 +73,15 @@ case class ReaderState(
    zoomLevel: Int,
    hs: Double,
    vs: Double,
-   direction:Direction                   
+   direction:Direction,   
+   showPageNumbers:Boolean                   
 ) extends AutoCloseable {
   
   private def checkScroll(pos: Double): Double =
     math.max(0.0, math.min(1.0, pos))
 
-  def this(images1: CBZImages, images2: CBZImages) =
-    this(new PartialState(images1), new PartialState(images2), 0, 0.5, 0.5, LeftToRight)
+  def this(images1: CBZImages, images2: CBZImages, direction:Direction, showPageNumbers:Boolean) =
+    this(new PartialState(images1), new PartialState(images2), 0, 0.5, 0.5, direction, showPageNumbers)
 
   def zoomFactor:Double = pow(ZOOM_STEP, zoomLevel)
 
@@ -154,6 +155,10 @@ case class ReaderState(
     copy(direction = dir)
   }
 
+  def setShowPageNumbers(show:Boolean):ReaderState = {
+    copy(showPageNumbers = show)
+  }
+
   override def close(): Unit = {
     state1.close()
     state2.close()
@@ -166,6 +171,6 @@ object ReaderState {
   
   def ZOOM_STEP = 1.2
   
-  def apply(file1:File, file2:File): ReaderState =
-    new ReaderState(new CBZImages(file1), new CBZImages(file2))
+  def apply(file1:File, file2:File, direction:Direction, showPageNumbers:Boolean): ReaderState =
+    new ReaderState(new CBZImages(file1), new CBZImages(file2), direction, showPageNumbers)
 }
