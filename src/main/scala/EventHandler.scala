@@ -109,7 +109,13 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel)
   
   override def mouseMoved(e: MouseEvent): Unit = { }
 
-  override def mouseClicked(e: MouseEvent): Unit = {}
+  override def mouseClicked(e: MouseEvent): Unit = {
+    e.getButton match {
+      case MouseEvent.BUTTON1 => updateState(panel1.currentState.nextPage)
+      case MouseEvent.BUTTON3 => updateState(panel1.currentState.prevPage)
+      case _ =>
+    }
+  }
 
   override def mouseEntered(e: MouseEvent): Unit = {}
 

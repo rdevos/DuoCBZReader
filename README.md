@@ -17,7 +17,14 @@ this will create
 or
     run.sh
 
+# menu
 
+- Right To Left: enables/disables Right To Left mode, if enabled
+
+  - the primary comic will be on the left,
+
+  - wide images will be split right hand half first
+  - cursor left will advance pages, cursor right goes backwards.
 
 # keys
 
@@ -35,7 +42,9 @@ or
 
 - minus: previous page of 2nd comic
 
-when zoomed in, use mouse drag to scroll or use:
+you can also navigate through pages using the mouse buttons: click mouse button 1 to advance, mouse button 3 to go back
+
+when zoomed in, use mouse drag ot mouse wheel to scroll or use:
 
 - 2: scroll down
 
@@ -44,3 +53,5 @@ when zoomed in, use mouse drag to scroll or use:
 - 6: scroll right
 
 - 8: scroll up
+
+
