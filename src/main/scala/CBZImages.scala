@@ -24,7 +24,7 @@ import org.apache.commons.compress.archivers.zip.{ZipArchiveEntry, ZipFile}
 
 import java.awt.Graphics2D
 import java.io.File
-import javax.imageio.ImageIO
+import javax.imageio.{ImageIO, ImageReader}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 import scala.util.Using
@@ -52,7 +52,7 @@ class CBZImages(file: File) extends AutoCloseable {
   private val rawPages: Int = rootEntries.size
 
   private val entries: List[EntryName] = rootEntries.map(_.getName)
-  
+
   private val dimensions: Map[EntryName, Dimensions] =
     (for {
       entry <- rootEntries
@@ -147,20 +147,25 @@ object CBZImages {
     }
   }
 
+  given imageReaderReleasable: Using.Releasable[ImageReader] with
+    def release(r: ImageReader): Unit =
+      r.dispose()
+
+  import java.util.Iterator as JavaIterator
+  extension [A](it: JavaIterator[A])
+    def headOption: Option[A] =
+      if (it.hasNext) Some(it.next()) else None
+
   def getDimensions(zipFile: ZipFile, entry: ZipArchiveEntry): Option[Dimensions] =
-    Using(zipFile.getInputStream(entry)) { in =>
-      Using(ImageIO.createImageInputStream(in)) { iis =>
-        val readers = ImageIO.getImageReaders(iis)
-        if (readers.hasNext) {
-          val reader = readers.next()
-          reader.setInput(iis)
-          val width = reader.getWidth(0)
-          val height = reader.getHeight(0)
-          reader.dispose()
-          (width = width, height = height)
-        } else {
-          throw new IllegalArgumentException(s"No reader for entry ${entry.getName}")
-        }
-      }.toOption
+    Using.Manager { use =>
+      val in = use(zipFile.getInputStream(entry))
+      val iis = use(ImageIO.createImageInputStream(in))
+      val readers = ImageIO.getImageReaders(iis)
+
+      readers.headOption.map { reader =>
+        val r = use(reader)
+        r.setInput(iis)
+        (width = r.getWidth(0), height = r.getHeight(0))
+      }
     }.toOption.flatten
 }

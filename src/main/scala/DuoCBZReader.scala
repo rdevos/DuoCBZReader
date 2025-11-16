@@ -55,6 +55,11 @@ object DuoCBZReader {
   
   private def initMenus(handler:EventHandler):MenuBar = {
     val menuBar = new MenuBar()
+    menuBar.add(fileMenu(handler))
+    menuBar
+  }
+
+  private def fileMenu(handler:EventHandler):Menu = {
     val fileMenu = new Menu("File")
     val openItem = new MenuItem("Open")
     openItem.addActionListener(handler)
@@ -63,24 +68,14 @@ object DuoCBZReader {
       (e: ItemEvent) => handler.directionChange(e.getStateChange)))
     fileMenu.add(checkBoxMenu("Show Page Numbers", true,
       (e: ItemEvent) => handler.togglePageNumbers(e.getStateChange)))
-    menuBar.add(fileMenu)
-    menuBar
+    fileMenu
   }
-
+  
   private def checkBoxMenu(content:String, value:Boolean, itemListener:ItemListener):MenuItem = {
     val menuItem = new CheckboxMenuItem(content)
     menuItem.setState(value)
     menuItem.addItemListener(itemListener)
     menuItem
-  }
-
-  private def checkFileOrExit(path:String, exitCode:Int):File = {
-    val file = new File (path)
-    if(!file.exists()) {
-      println("not found: " + file.getAbsolutePath)
-      sys.exit(exitCode)
-    }
-    file
   }
   
   private def initialArgs():Args =
@@ -90,4 +85,3 @@ object DuoCBZReader {
     val height = usableBounds.getHeight.toInt
     Args(width, height, selectFile("select left comic"), selectFile("select right comic"))
 }
-
