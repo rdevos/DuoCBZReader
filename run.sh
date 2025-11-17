@@ -1,3 +1,3 @@
 #!/bin/bash
 
-java -jar ./target/scala-3.3.6/duoCBZReader.jar
+java -jar ./target/scala-3.7.0/duoCBZReader.jar

@@ -9,11 +9,11 @@ run
     sbt assembly
 
 this will create
-    target/scala-3.3.6/duoCBZReader.jar
+    target/scala-3.7.0/duoCBZReader.jar
 
 ## when duoCBZReader.jar is built 
 
-    java -jar target/scala-3.3.6/duoCBZReader.jar
+    java -jar target/scala-3.7.0/duoCBZReader.jar
 or
     run.sh
 
