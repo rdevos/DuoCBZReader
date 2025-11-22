@@ -16,17 +16,21 @@
 
 package be.afront.reader
 
-import EventHandler.{SENSITIVITY, WHEEL_SENSITIVITY, selectFile}
+import EventHandler.{SENSITIVITY, WHEEL_SENSITIVITY, addMenuItemsForModeMenu, open, selectFile}
 import CBZImages.Direction.{LeftToRight, RightToLeft}
+import ReaderState.Mode
+import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single}
 
-import java.awt.{FileDialog, Frame, Point}
+import be.afront.reader.CBZImages.Direction
+
+import java.awt.{FileDialog, Frame, Menu, MenuItem, Point}
 import java.awt.event.{ActionEvent, ActionListener, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener, MouseWheelEvent, MouseWheelListener}
 import javax.swing.{JFrame, SwingUtilities}
-import java.awt.event.KeyEvent.{VK_2, VK_4, VK_6, VK_8, VK_ADD, VK_DOWN, VK_LEFT, VK_MINUS, VK_NUMPAD2, VK_NUMPAD4, VK_NUMPAD6, VK_NUMPAD8, VK_PLUS, VK_Q, VK_RIGHT, VK_SUBTRACT, VK_UP}
+import java.awt.event.KeyEvent.{VK_2, VK_4, VK_6, VK_8, VK_ADD, VK_DOWN, VK_LEFT, VK_MINUS, VK_NUMPAD2, VK_NUMPAD4, VK_NUMPAD6, VK_NUMPAD8, VK_PLUS, VK_Q, VK_RIGHT, VK_SHIFT, VK_SUBTRACT, VK_UP}
 import java.io.File
 import java.awt.event.ItemEvent.SELECTED
 
-class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel, initialState:ReaderState)
+class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel, initialState:ReaderState, width:Int)
   extends KeyListener
     with MouseMotionListener
     with MouseWheelListener
@@ -39,7 +43,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel, initialSt
     frame.addMouseListener(this)
     frame.addMouseWheelListener(this)
   }
-  
+
   var state:ReaderState = initialState
 
   var initialMouseDown: (p:Point, h:Double, v:Double) = null
@@ -47,29 +51,88 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel, initialSt
   init()
 
   override def keyPressed(e: KeyEvent): Unit = {
-    stateMachine(e.getKeyCode, panel1) match {
+    stateMachine(e.getKeyCode, true) match {
       case Some(newState) =>
         updateState(newState)
       case None =>
         frame.dispose()
     }
   }
-  
-  private def updateState(newState:ReaderState): Unit = {
+
+  override def keyReleased(e: KeyEvent): Unit = {
+    stateMachine(e.getKeyCode, false) match {
+      case Some(newState) =>
+        updateState(newState)
+      case None =>
+        frame.dispose()
+    }
+  }
+
+  private def updateState(newState: ReaderState): Unit =
+    updateState(newState, false)
+
+
+  private def updateState(newState:ReaderState, afterOpen:Boolean): Unit = {
+    if(state.mode != newState.mode) {
+      layoutChangeFor(newState)
+    }
+    if(afterOpen) {
+      // do menubar
+      val menuBar = frame.getMenuBar
+      val menu = menuBar.getMenu(1)
+      menu.removeAll()
+      if (newState.mode == Dual2) {
+        addMenuItemsForModeMenu(menu, this)
+      }
+    }
     state = newState
     SwingUtilities.invokeLater { () =>
       panel1.setNewState(newState)
-      panel2.setNewState(newState)
+      if(newState.state2!=null) panel2.setNewState(newState)
+      frame.revalidate()
       frame.repaint()
     }
   }
 
-  private def stateMachine(keyCode: Int, panel1: ImagePanel): Option[ReaderState] = {
-    keyCode match {
+  private def updateStateForNewFiles(tuple:(files: List[File],mode: Mode,state: ReaderState)):Unit = {
+    updateState(tuple.state, true)
+  }
+
+  private def layoutChangeFor(newState:ReaderState): Unit = {
+    val oldMode = state.mode
+    val newMode = newState.mode
+
+    frame.remove(panel1)
+    frame.remove(panel2)
+    val panels = visiblePanels(newMode)
+    panels.foreach(frame.add)
+
+    if(panels.size == 1)
+      frame.setSize(width / 2, frame.getHeight)
+    else if(panels.size == 2)
+      frame.setSize(width, frame.getHeight)
+
+    frame.setVisible(newMode != Blank)
+  }
+
+  private def visiblePanels(mode:Mode):List[ImagePanel] = {
+    mode match {
+      case Blank => List()
+      case Single => List(panel1)
+      case Dual1 => List(panel1)
+      case Dual1b => List(panel2)
+      case Dual2 => List(panel1, panel2)
+    }
+  }
+
+  private def stateMachine(keyCode: Int, pressed:Boolean): Option[ReaderState] = {
+    if (pressed) keyCode match {
       case VK_RIGHT => Some(state.right)
       case VK_LEFT => Some(state.left)
       case VK_UP => Some(state.zoomIn)
       case VK_DOWN => Some(state.zoomOut)
+
+      case VK_SHIFT => if(state.mode==Dual1) Some(state.setMode(Dual1b)) else Some(state)
 
       case VK_MINUS | VK_SUBTRACT => Some(state.minus)
       case VK_PLUS | VK_ADD=> Some(state.plus)
@@ -81,12 +144,14 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel, initialSt
 
       case VK_Q => None
       case _ => Some(state)
+      
+    } else keyCode match {
+      case VK_SHIFT => if(state.mode==Dual1b) Some(state.setMode(Dual1)) else Some(state)
+      case _ => Some(state)
     }
   }
 
   override def keyTyped(e: KeyEvent): Unit = {}
-
-  override def keyReleased(e: KeyEvent): Unit = {}
 
   override def mousePressed(e: MouseEvent): Unit = {
     initialMouseDown = (e.getPoint, state.hs, state.vs)
@@ -127,8 +192,12 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel, initialSt
   override def actionPerformed(event: ActionEvent): Unit = {
     event.getActionCommand match {
       case "Open" => 
-        updateState(ReaderState(selectFile("select 1st comic"), selectFile("select 2nd comic"),
-          state.direction, state.showPageNumbers))
+        updateStateForNewFiles(open(state.direction, state.showPageNumbers))
+
+      case "Dual 2 columns" => changeMode(Dual2)
+      case "Dual 1 column" => changeMode(Dual1)
+      case "Single" => changeMode(Single)
+
       case _ => println("unimplemented command "+ event.getActionCommand)
     }
   }
@@ -139,6 +208,15 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel, initialSt
   def togglePageNumbers(newState: Int): Unit =
     updateState(state.setShowPageNumbers(newState == SELECTED))
 
+  def changeMode(newMode: String): Unit =
+    newMode match {
+      case "Dual 2 columns" => changeMode(Dual2)
+      case "Dual 1 column" => changeMode(Dual1)
+      case "Single" => changeMode(Single)
+    }
+
+  def changeMode(newMode:Mode):Unit =
+    updateState(state.setMode(newMode))
 
   override def mouseWheelMoved(e: MouseWheelEvent): Unit =
     updateState(state.scrollVertical(e.getWheelRotation * WHEEL_SENSITIVITY))
@@ -150,7 +228,7 @@ object EventHandler {
   val WHEEL_SENSITIVITY = 0.01
 
 
-  def selectFile(prompt: String): File = {
+  def selectFile(prompt: String): Option[File] = {
     val dummyFrame = new Frame()
     dummyFrame.setSize(0, 0)
 
@@ -161,7 +239,40 @@ object EventHandler {
     dialog.dispose()
     dummyFrame.dispose()
 
-    files(0)
+    if(files.isEmpty) None else Some(files(0))
   }
 
+  def open(direction:Direction, showPageNumbers:Boolean): (files: List[File],mode: Mode,state: ReaderState) = {
+    val files:List[File] = selectFile("select 1st file").toList ++ selectFile("select 2nd file").toList
+
+    val mode = if (files.size == 2) Dual2 else if (files.size == 1) Single else Blank
+
+    val state = mode match {
+      case Dual2 => ReaderState(mode, files(0), files(1), direction, showPageNumbers)
+      case Single => ReaderState(mode, files(0), null, direction, showPageNumbers)
+      case _ => ReaderState(mode, null, null, direction, showPageNumbers)
+    }
+    (files,mode,state)
+  }
+
+  def actions: List[String] = List("Dual 2 columns", "Dual 1 column");
+
+  private class ModeChangeListener(menuItems: List[MenuItem], handler: EventHandler) extends ActionListener {
+
+    override
+    def actionPerformed(e: ActionEvent): Unit = {
+      val action = e.getActionCommand
+      val ix = actions.indexOf(e.getActionCommand)
+      actions.indices.foreach(ix2 => menuItems(ix2).setEnabled(ix2 != ix))
+      handler.changeMode(action)
+    }
+  }
+
+  def addMenuItemsForModeMenu(menu:Menu, handler: EventHandler): Unit = {
+    val items = actions.map(new MenuItem(_))
+    items.head.setEnabled(false)
+    val listener = new ModeChangeListener(items, handler)
+    items.foreach(item => item.addActionListener(listener))
+    items.foreach(menu.add)
+  }
 }

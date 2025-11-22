@@ -16,10 +16,12 @@
 
 package be.afront.reader
 
-import ReaderState.{SCROLL_STEP, ZOOM_STEP}
-
+import ReaderState.{Mode, SCROLL_STEP, ZOOM_STEP}
 import CBZImages.Direction
 import CBZImages.Direction.LeftToRight
+
+import be.afront.reader.PartialState.fromImage
+import be.afront.reader.ReaderState.Mode.{Dual1, Dual1b, Single}
 
 import java.awt.image.BufferedImage
 import java.io.File
@@ -67,7 +69,14 @@ case class PartialState(
     images.close()
 }
 
+object PartialState {
+
+  def fromImage(images: CBZImages):PartialState =
+    if(images == null) null else new PartialState(images)
+}
+
 case class ReaderState(
+   mode: Mode,
    state1: PartialState,
    state2: PartialState,
    zoomLevel: Int,
@@ -80,8 +89,8 @@ case class ReaderState(
   private def checkScroll(pos: Double): Double =
     math.max(0.0, math.min(1.0, pos))
 
-  def this(images1: CBZImages, images2: CBZImages, direction:Direction, showPageNumbers:Boolean) =
-    this(new PartialState(images1), new PartialState(images2), 0, 0.5, 0.5, direction, showPageNumbers)
+  def this(mode:Mode, images1: CBZImages, images2: CBZImages, direction:Direction, showPageNumbers:Boolean) =
+    this(mode, fromImage(images1), fromImage(images2), 0, 0.5, 0.5, direction, showPageNumbers)
 
   def zoomFactor:Double = pow(ZOOM_STEP, zoomLevel)
 
@@ -90,17 +99,20 @@ case class ReaderState(
 
   def left:ReaderState =
     if(direction == LeftToRight) prevPage else nextPage
-  
+
+  def safe2(f: PartialState=>PartialState): PartialState =
+    if(state2==null) null else f(state2)
+
   def nextPage: ReaderState = {
     val newState1 = state1.nextPage
     if(!newState1.success) this else
-      copy(state1 = newState1.state, state2 = state2.nextPage.state, hs = 0.5, vs = 0.0)
+      copy(state1 = newState1.state, state2 = safe2(_.nextPage.state), hs = 0.5, vs = 0.0)
   }
 
   def prevPage: ReaderState = {
     val newState1 = state1.prevPage
     if(!newState1.success) this else
-      copy(state1 = newState1.state, state2 = state2.prevPage.state, hs = 0.5, vs = 0.0)
+      copy(state1 = newState1.state, state2 = safe2(_.prevPage.state), hs = 0.5, vs = 0.0)
   }
 
   def zoomIn: ReaderState = copy(zoomLevel =
@@ -109,9 +121,9 @@ case class ReaderState(
   def zoomOut: ReaderState = copy(zoomLevel =
     zoomLevel - 1)
 
-  def minus: ReaderState = copy(state2 = state2.prevPage.state)
+  def minus: ReaderState = copy(state2 = safe2(_.prevPage.state))
 
-  def plus: ReaderState = copy(state2 = state2.nextPage.state)
+  def plus: ReaderState = copy(state2 = safe2(_.nextPage.state))
 
   def conditionalScroll(scrolled: => ReaderState):ReaderState =
     if(zoomLevel>0) scrolled else this
@@ -141,9 +153,16 @@ case class ReaderState(
     scrollTo(hs, vs+dy)
 
   def getCurrentImage(column:Int): Option[BufferedImage] = {
-    val signedColumn = if(direction==LeftToRight) column else 1-column
-    if (signedColumn==0) state1.getCurrentImage(direction) else
-      if(signedColumn==1) state2.getCurrentImage(direction) else None
+    println(s"image requested for column $column, direction = $direction")
+    if(mode == Dual1 || mode == Single) {
+      state1.getCurrentImage(direction)
+    } else if (mode == Dual1b) {
+      state2.getCurrentImage(direction)
+    } else {
+      // This is a bit of a pain, but we do this so panel1 is always to the left of pane;2
+      val signedColumn = if (direction == LeftToRight) column else 1 - column
+      if (signedColumn == 0) state1.getCurrentImage(direction) else if (signedColumn == 1 && state2 != null) state2.getCurrentImage(direction) else None
+    }
   }
 
   def getPageIndicator(column:Int):String =
@@ -151,7 +170,7 @@ case class ReaderState(
 
   def setDirection(dir:Direction): ReaderState = {
     state1.partiallyClearCache()
-    state2.partiallyClearCache()
+    if(state2 != null) state2.partiallyClearCache()
     copy(direction = dir)
   }
 
@@ -159,18 +178,28 @@ case class ReaderState(
     copy(showPageNumbers = show)
   }
 
+  def setMode(newMode:Mode):ReaderState = {
+    copy(mode = newMode)
+  }
+  
   override def close(): Unit = {
     state1.close()
-    state2.close()
+    if(state2!=null) state2.close()
   }
 }
 
 object ReaderState {
 
+  enum Mode {
+    case Blank, Single, Dual2, Dual1, Dual1b
+  }
+
   def SCROLL_STEP = 0.125
   
   def ZOOM_STEP = 1.2
   
-  def apply(file1:File, file2:File, direction:Direction, showPageNumbers:Boolean): ReaderState =
-    new ReaderState(new CBZImages(file1), new CBZImages(file2), direction, showPageNumbers)
+  def apply(mode:Mode, file1:File, file2:File, direction:Direction, showPageNumbers:Boolean): ReaderState =
+    new ReaderState(mode,
+      Option(file1).map(new CBZImages(_)).orNull,
+      Option(file2).map(new CBZImages(_)).orNull, direction, showPageNumbers)
 }

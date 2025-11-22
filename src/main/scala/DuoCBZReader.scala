@@ -16,50 +16,59 @@
 
 package be.afront.reader
 
-import java.awt.event.{ItemEvent, ItemListener}
+import java.awt.event.{ActionEvent, ActionListener, ItemEvent, ItemListener}
 import java.awt.{CheckboxMenuItem, GraphicsEnvironment, GridLayout, Menu, MenuBar, MenuItem, Rectangle, Toolkit}
 import java.io.File
 import javax.swing.JFrame
 import javax.swing.WindowConstants.EXIT_ON_CLOSE
-import EventHandler.selectFile
-
+import EventHandler.{addMenuItemsForModeMenu, open}
 import CBZImages.Direction
+import ReaderState.Mode.{Blank, Dual2, Single}
+
+import be.afront.reader.ReaderState.Mode
 
 object DuoCBZReader {
 
-  case class Args(width:Int, height:Int, cbzPath1:File, cbzPath2:File)
-
   def main(args: Array[String]): Unit = {
 
-    val args:Args = initialArgs()
-    val state = ReaderState(args.cbzPath1, args.cbzPath2, Direction.LeftToRight, true)
+    val availableScreenSize: (width: Int, height: Int) = screenSize()
 
+    val openResult: (files: List[File],mode: Mode,state: ReaderState) =
+      open(Direction.LeftToRight, true)
+    
     val frame = new JFrame("CBZ Reader")
-    frame.setSize(args.width, args.height)
+    frame.setSize(if (openResult.mode == Dual2) availableScreenSize.width else availableScreenSize.width / 2, availableScreenSize.height)
     frame.setUndecorated(true)
     frame.setDefaultCloseOperation(EXIT_ON_CLOSE)
     frame.setResizable(false)
     frame.setLayout(new GridLayout(1, 2))
 
-    val panel1 = new ImagePanel(state, 0)
-    val panel2 = new ImagePanel(state, 1)
-    frame.add(panel1)
-    frame.add(panel2)
+    val panel1 = new ImagePanel(openResult.state, 0)
+    val panel2 = new ImagePanel(openResult.state, 1)
+    if(openResult.mode != Blank) {
+      frame.add(panel1)
+    }
+    if (openResult.mode == Dual2) {
+      frame.add(panel2)
+    }
 
-    val handler = new EventHandler(frame, panel1, panel2, state)
+    val handler = new EventHandler(frame, panel1, panel2, openResult.state, availableScreenSize.width)
 
-    frame.setMenuBar(initMenus(handler))
-    frame.setVisible(true)
+    frame.setMenuBar(initMenus(handler, openResult.mode))
+    if(openResult.mode != Blank) {
+      frame.setVisible(true)
+    }
     frame.requestFocusInWindow()
   }
-  
-  private def initMenus(handler:EventHandler):MenuBar = {
+
+  private def initMenus(handler: EventHandler, mode: Mode): MenuBar = {
     val menuBar = new MenuBar()
     menuBar.add(fileMenu(handler))
+    menuBar.add(modeMenu(handler, mode))
     menuBar
   }
 
-  private def fileMenu(handler:EventHandler):Menu = {
+  private def fileMenu(handler: EventHandler): Menu = {
     val fileMenu = new Menu("File")
     val openItem = new MenuItem("Open")
     openItem.addActionListener(handler)
@@ -71,17 +80,27 @@ object DuoCBZReader {
     fileMenu
   }
   
-  private def checkBoxMenu(content:String, value:Boolean, itemListener:ItemListener):MenuItem = {
+  private def modeMenu(handler: EventHandler, mode: Mode): Menu = {
+    val modeMenu = new Menu("Mode")
+    if(mode == Dual2) {
+      addMenuItemsForModeMenu(modeMenu, handler)
+    }
+    modeMenu
+  }
+
+  private def checkBoxMenu(content: String, value: Boolean, itemListener: ItemListener): MenuItem = {
     val menuItem = new CheckboxMenuItem(content)
     menuItem.setState(value)
     menuItem.addItemListener(itemListener)
     menuItem
   }
-  
-  private def initialArgs():Args =
+
+  private def screenSize(): (width: Int, height: Int) = {
+
     val ge = GraphicsEnvironment.getLocalGraphicsEnvironment
     val usableBounds: Rectangle = ge.getMaximumWindowBounds
     val width = usableBounds.getWidth.toInt
     val height = usableBounds.getHeight.toInt
-    Args(width, height, selectFile("select left comic"), selectFile("select right comic"))
+    (width, height)
+  }
 }

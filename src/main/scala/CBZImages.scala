@@ -44,13 +44,11 @@ class CBZImages(file: File) extends AutoCloseable {
   type EntryName = String
 
   type ImageIndex = Int
-
+  
   type PageIndex = Int
 
   type Combo = (rawPage: ImageIndex, part:Option[Part])
-
-  private val rawPages: Int = rootEntries.size
-
+  
   private val entries: List[EntryName] = rootEntries.map(_.getName)
 
   private val dimensions: Map[EntryName, Dimensions] =
@@ -66,7 +64,7 @@ class CBZImages(file: File) extends AutoCloseable {
 
   private val widePages: Int = wideIndices.size
 
-  val totalPages: Int = rawPages + widePages
+  val totalPages: Int = rootEntries.size + widePages
 
   private val pageMap: Map[PageIndex, Combo] = {
     entries.indices.flatMap { rawIdx =>
