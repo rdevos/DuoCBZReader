@@ -21,7 +21,7 @@ import CBZImages.Direction
 import CBZImages.Direction.LeftToRight
 
 import be.afront.reader.PartialState.fromImage
-import be.afront.reader.ReaderState.Mode.{Dual1, Dual1b, Single}
+import be.afront.reader.ReaderState.Mode.{Blank, Dual1, Dual1b, Single}
 
 import java.awt.image.BufferedImage
 import java.io.File
@@ -153,16 +153,17 @@ case class ReaderState(
     scrollTo(hs, vs+dy)
 
   def getCurrentImage(column:Int): Option[BufferedImage] = {
-    println(s"image requested for column $column, direction = $direction")
-    if(mode == Dual1 || mode == Single) {
-      state1.getCurrentImage(direction)
-    } else if (mode == Dual1b) {
-      state2.getCurrentImage(direction)
-    } else {
-      // This is a bit of a pain, but we do this so panel1 is always to the left of pane;2
-      val signedColumn = if (direction == LeftToRight) column else 1 - column
-      if (signedColumn == 0) state1.getCurrentImage(direction) else if (signedColumn == 1 && state2 != null) state2.getCurrentImage(direction) else None
+
+    val state = mode match {
+      case Blank => None
+      case Dual1 | Single => Option(state1)
+      case Dual1b => Option(state2)
+      case _ => {
+        val signedColumn = direction.swapIfNeeded(column)
+        if (signedColumn == 0) Option(state1) else if (signedColumn == 1) Option(state2) else None
+      }
     }
+    state.flatMap(_.getCurrentImage(direction))
   }
 
   def getPageIndicator(column:Int):String =
@@ -197,7 +198,9 @@ object ReaderState {
   def SCROLL_STEP = 0.125
   
   def ZOOM_STEP = 1.2
-  
+
+  def INITIAL_STATE = new ReaderState(Mode.Blank, null, null, LeftToRight, true);
+
   def apply(mode:Mode, file1:File, file2:File, direction:Direction, showPageNumbers:Boolean): ReaderState =
     new ReaderState(mode,
       Option(file1).map(new CBZImages(_)).orNull,

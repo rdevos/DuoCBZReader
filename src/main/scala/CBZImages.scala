@@ -127,6 +127,11 @@ object CBZImages {
       case LeftToRight => if(part == First) Side.Left else Side.Right
       case RightToLeft => if(part == First) Side.Right else Side.Left
     }
+    
+    def swapIfNeeded(column:Int):Int = this match {
+      case LeftToRight => column
+      case RightToLeft => 1 - column
+    }
   }
 
   enum Part {

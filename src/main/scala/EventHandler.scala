@@ -21,7 +21,7 @@ import CBZImages.Direction.{LeftToRight, RightToLeft}
 import ReaderState.Mode
 import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single}
 
-import be.afront.reader.CBZImages.Direction
+import CBZImages.{Dimensions, Direction}
 
 import java.awt.{FileDialog, Frame, Menu, MenuItem, Point}
 import java.awt.event.{ActionEvent, ActionListener, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener, MouseWheelEvent, MouseWheelListener}
@@ -30,7 +30,7 @@ import java.awt.event.KeyEvent.{VK_2, VK_4, VK_6, VK_8, VK_ADD, VK_DOWN, VK_LEFT
 import java.io.File
 import java.awt.event.ItemEvent.SELECTED
 
-class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel, initialState:ReaderState, width:Int)
+class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel, initialState:ReaderState, screenSize:Dimensions)
   extends KeyListener
     with MouseMotionListener
     with MouseWheelListener
@@ -86,10 +86,11 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel, initialSt
       }
     }
     state = newState
+    panel1.setNewState(newState)
+    if (newState.state2 != null) panel2.setNewState(newState)
+    frame.revalidate()
+
     SwingUtilities.invokeLater { () =>
-      panel1.setNewState(newState)
-      if(newState.state2!=null) panel2.setNewState(newState)
-      frame.revalidate()
       frame.repaint()
     }
   }
@@ -108,11 +109,10 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel, initialSt
     panels.foreach(frame.add)
 
     if(panels.size == 1)
-      frame.setSize(width / 2, frame.getHeight)
+      frame.setSize(screenSize.width / 2, screenSize.height)
     else if(panels.size == 2)
-      frame.setSize(width, frame.getHeight)
-
-    frame.setVisible(newMode != Blank)
+      frame.setSize(screenSize.width, screenSize.height)
+    else frame.setSize(0, 0)   
   }
 
   private def visiblePanels(mode:Mode):List[ImagePanel] = {
@@ -193,11 +193,6 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel, initialSt
     event.getActionCommand match {
       case "Open" => 
         updateStateForNewFiles(open(state.direction, state.showPageNumbers))
-
-      case "Dual 2 columns" => changeMode(Dual2)
-      case "Dual 1 column" => changeMode(Dual1)
-      case "Single" => changeMode(Single)
-
       case _ => println("unimplemented command "+ event.getActionCommand)
     }
   }

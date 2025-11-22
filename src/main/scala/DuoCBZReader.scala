@@ -16,16 +16,14 @@
 
 package be.afront.reader
 
-import java.awt.event.{ActionEvent, ActionListener, ItemEvent, ItemListener}
-import java.awt.{CheckboxMenuItem, GraphicsEnvironment, GridLayout, Menu, MenuBar, MenuItem, Rectangle, Toolkit}
-import java.io.File
+import java.awt.event.{ItemEvent, ItemListener}
+import java.awt.{CheckboxMenuItem, GraphicsEnvironment, GridLayout, Menu, MenuBar, MenuItem, Rectangle}
 import javax.swing.JFrame
 import javax.swing.WindowConstants.EXIT_ON_CLOSE
-import EventHandler.{addMenuItemsForModeMenu, open}
-import CBZImages.Direction
-import ReaderState.Mode.{Blank, Dual2, Single}
+import EventHandler.addMenuItemsForModeMenu
+import ReaderState.Mode.Dual2
 
-import be.afront.reader.ReaderState.Mode
+import ReaderState.{INITIAL_STATE, Mode}
 
 object DuoCBZReader {
 
@@ -33,31 +31,20 @@ object DuoCBZReader {
 
     val availableScreenSize: (width: Int, height: Int) = screenSize()
 
-    val openResult: (files: List[File],mode: Mode,state: ReaderState) =
-      open(Direction.LeftToRight, true)
-    
     val frame = new JFrame("CBZ Reader")
-    frame.setSize(if (openResult.mode == Dual2) availableScreenSize.width else availableScreenSize.width / 2, availableScreenSize.height)
     frame.setUndecorated(true)
     frame.setDefaultCloseOperation(EXIT_ON_CLOSE)
     frame.setResizable(false)
     frame.setLayout(new GridLayout(1, 2))
 
-    val panel1 = new ImagePanel(openResult.state, 0)
-    val panel2 = new ImagePanel(openResult.state, 1)
-    if(openResult.mode != Blank) {
-      frame.add(panel1)
-    }
-    if (openResult.mode == Dual2) {
-      frame.add(panel2)
-    }
+    val state:ReaderState = INITIAL_STATE
+    val panel1 = new ImagePanel(state, 0)
+    val panel2 = new ImagePanel(state, 1)
 
-    val handler = new EventHandler(frame, panel1, panel2, openResult.state, availableScreenSize.width)
+    val handler = new EventHandler(frame, panel1, panel2, state, availableScreenSize)
 
-    frame.setMenuBar(initMenus(handler, openResult.mode))
-    if(openResult.mode != Blank) {
-      frame.setVisible(true)
-    }
+    frame.setMenuBar(initMenus(handler, state.mode))
+    frame.setVisible(true)
     frame.requestFocusInWindow()
   }
 
