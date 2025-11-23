@@ -18,6 +18,8 @@ package be.afront.reader
 
 import ImagePanel.indicatorFont
 
+import be.afront.reader.ReaderState.Size.Width
+
 import java.awt.{Color, Font, Graphics, Graphics2D}
 import java.awt.RenderingHints.{KEY_INTERPOLATION, VALUE_INTERPOLATION_BILINEAR}
 import javax.swing.JPanel
@@ -42,7 +44,12 @@ class ImagePanel(initialState: ReaderState, column:Int) extends JPanel {
       val panelWidth = getWidth
       val panelHeight = getHeight
 
-      val fitScale = Math.min(panelWidth.toDouble / imgWidth, panelHeight.toDouble / imgHeight)
+      val widthScale = panelWidth.toDouble / imgWidth
+      val heightScale = panelHeight.toDouble / imgHeight
+
+      val fitScale = if(state.size == Width) widthScale else
+        Math.min(widthScale, heightScale)
+
       val scale = fitScale * state.zoomFactor
 
       val scaledWidth = (imgWidth * scale).toInt

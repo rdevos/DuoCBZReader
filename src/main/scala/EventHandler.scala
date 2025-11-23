@@ -18,10 +18,11 @@ package be.afront.reader
 
 import EventHandler.{SENSITIVITY, WHEEL_SENSITIVITY, addMenuItemsForModeMenu, open, selectFile}
 import CBZImages.Direction.{LeftToRight, RightToLeft}
-import ReaderState.Mode
+import ReaderState.{Mode, Size}
 import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single}
-
 import CBZImages.{Dimensions, Direction}
+
+import ReaderState.Size.{Image, Width}
 
 import java.awt.{FileDialog, Frame, Menu, MenuItem, Point}
 import java.awt.event.{ActionEvent, ActionListener, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener, MouseWheelEvent, MouseWheelListener}
@@ -193,7 +194,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel, initialSt
   override def actionPerformed(event: ActionEvent): Unit = {
     event.getActionCommand match {
       case "Open" => 
-        updateStateForNewFiles(open(state.direction, state.showPageNumbers))
+        updateStateForNewFiles(open(state.size, state.direction, state.showPageNumbers))
       case _ => println("unimplemented command "+ event.getActionCommand)
     }
   }
@@ -211,8 +212,18 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel, initialSt
       case "Single" => changeMode(Single)
     }
 
+  def changeSize(newSize: String): Unit =
+    newSize match {
+      case "Fit image" => changeSize(Image)
+      case "Fit width" => changeSize(Width)
+    }
+
   def changeMode(newMode:Mode):Unit =
     updateState(state.setMode(newMode))
+
+  def changeSize(newSize:Size):Unit =
+    updateState(state.setSize(newSize))
+
 
   override def mouseWheelMoved(e: MouseWheelEvent): Unit =
     updateState(state.scrollVertical(e.getWheelRotation * WHEEL_SENSITIVITY))
@@ -238,22 +249,21 @@ object EventHandler {
     if(files.isEmpty) None else Some(files(0))
   }
 
-  def open(direction:Direction, showPageNumbers:Boolean): (files: List[File],mode: Mode,state: ReaderState) = {
+  def open(size:Size, direction:Direction, showPageNumbers:Boolean): (files: List[File],mode: Mode,state: ReaderState) = {
     val files:List[File] = selectFile("select 1st file").toList ++ selectFile("select 2nd file").toList
 
     val mode = if (files.size == 2) Dual2 else if (files.size == 1) Single else Blank
 
     val state = mode match {
-      case Dual2 => ReaderState(mode, files(0), files(1), direction, showPageNumbers)
-      case Single => ReaderState(mode, files(0), null, direction, showPageNumbers)
-      case _ => ReaderState(mode, null, null, direction, showPageNumbers)
+      case Dual2 => ReaderState(mode, files(0), files(1), size, direction, showPageNumbers)
+      case Single => ReaderState(mode, files(0), null, size, direction, showPageNumbers)
+      case _ => ReaderState(mode, null, null, size, direction, showPageNumbers)
     }
     (files,mode,state)
   }
 
-  def actions: List[String] = List("Dual 2 columns", "Dual 1 column");
 
-  private class ModeChangeListener(handler: EventHandler) extends ActionListener {
+  private class ExclusiveChangeListener(handler: EventHandler, action:(EventHandler, String)=>Unit) extends ActionListener {
 
     override
     def actionPerformed(e: ActionEvent): Unit = {
@@ -263,15 +273,27 @@ object EventHandler {
         val item = menu.getItem(i)
         item.setEnabled(item != selected)
       }
-      handler.changeMode(e.getActionCommand)
+      action(handler, e.getActionCommand)
     }
   }
 
-  def addMenuItemsForModeMenu(menu:Menu, handler: EventHandler): Unit = {
-    val items = actions.map(new MenuItem(_))
+  def addMenuItemsForMenu(menu: Menu, itemNames:List[String], handler: EventHandler, action:(EventHandler, String)=>Unit): Unit = {
+    val items = itemNames.map(new MenuItem(_))
     items.head.setEnabled(false)
-    val listener = new ModeChangeListener(handler)
+    val listener = new ExclusiveChangeListener(handler, action)
     items.foreach(item => item.addActionListener(listener))
     items.foreach(menu.add)
+  }
+
+  def possibleModes: List[String] = List("Dual 2 columns", "Dual 1 column");
+
+  def addMenuItemsForModeMenu(menu:Menu, handler: EventHandler): Unit = {
+    addMenuItemsForMenu(menu, possibleModes, handler, (handler,arg) =>handler.changeMode(arg))
+  }
+
+  def possibleSizes: List[String] = List("Fit image", "Fit width");
+
+  def addMenuItemsForSizeMenu(menu: Menu, handler: EventHandler): Unit = {
+    addMenuItemsForMenu(menu, possibleSizes, handler, (handler,arg) =>handler.changeSize(arg))
   }
 }

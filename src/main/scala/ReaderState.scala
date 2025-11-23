@@ -16,12 +16,13 @@
 
 package be.afront.reader
 
-import ReaderState.{Mode, SCROLL_STEP, ZOOM_STEP}
+import ReaderState.{Mode, SCROLL_STEP, Size, ZOOM_STEP}
 import CBZImages.Direction
 import CBZImages.Direction.LeftToRight
 
 import be.afront.reader.PartialState.fromImage
 import be.afront.reader.ReaderState.Mode.{Blank, Dual1, Dual1b, Single}
+import be.afront.reader.ReaderState.Size.Image
 
 import java.awt.image.BufferedImage
 import java.io.File
@@ -82,6 +83,7 @@ case class ReaderState(
    zoomLevel: Int,
    hs: Double,
    vs: Double,
+   size: Size,                   
    direction:Direction,   
    showPageNumbers:Boolean                   
 ) extends AutoCloseable {
@@ -89,8 +91,8 @@ case class ReaderState(
   private def checkScroll(pos: Double): Double =
     math.max(0.0, math.min(1.0, pos))
 
-  def this(mode:Mode, images1: CBZImages, images2: CBZImages, direction:Direction, showPageNumbers:Boolean) =
-    this(mode, fromImage(images1), fromImage(images2), 0, 0.5, 0.5, direction, showPageNumbers)
+  def this(mode:Mode, images1: CBZImages, images2: CBZImages, size:Size, direction:Direction, showPageNumbers:Boolean) =
+    this(mode, fromImage(images1), fromImage(images2), 0, 0.5, 0.5, size, direction, showPageNumbers)
 
   def zoomFactor:Double = pow(ZOOM_STEP, zoomLevel)
 
@@ -182,7 +184,11 @@ case class ReaderState(
   def setMode(newMode:Mode):ReaderState = {
     copy(mode = newMode)
   }
-  
+
+  def setSize(newSize: Size): ReaderState = {
+    copy(size = newSize)
+  }
+
   override def close(): Unit = {
     state1.close()
     if(state2!=null) state2.close()
@@ -194,15 +200,20 @@ object ReaderState {
   enum Mode {
     case Blank, Single, Dual2, Dual1, Dual1b
   }
+  
+  enum Size {
+    case Image, Width
+  }
 
   def SCROLL_STEP = 0.125
   
   def ZOOM_STEP = 1.2
 
-  def INITIAL_STATE = new ReaderState(Mode.Blank, null, null, LeftToRight, true);
+  def INITIAL_STATE = new ReaderState(Mode.Blank, null, null, Image, LeftToRight, true);
 
-  def apply(mode:Mode, file1:File, file2:File, direction:Direction, showPageNumbers:Boolean): ReaderState =
+  def apply(mode:Mode, file1:File, file2:File, size:Size, direction:Direction, showPageNumbers:Boolean): ReaderState =
     new ReaderState(mode,
       Option(file1).map(new CBZImages(_)).orNull,
-      Option(file2).map(new CBZImages(_)).orNull, direction, showPageNumbers)
+      Option(file2).map(new CBZImages(_)).orNull,
+      size, direction, showPageNumbers)
 }
