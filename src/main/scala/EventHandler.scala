@@ -125,22 +125,25 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel, initialSt
     }
   }
 
+  private def ifNotBlank(r: => Option[ReaderState]):Option[ReaderState] =
+    if(state.mode == Blank) Some(state) else r   
+  
   private def stateMachine(keyCode: Int, pressed:Boolean): Option[ReaderState] = {
     if (pressed) keyCode match {
-      case VK_RIGHT => Some(state.right)
-      case VK_LEFT => Some(state.left)
-      case VK_UP => Some(state.zoomIn)
-      case VK_DOWN => Some(state.zoomOut)
+      case VK_RIGHT => ifNotBlank(Some(state.right))
+      case VK_LEFT => ifNotBlank(Some(state.left))
+      case VK_UP => ifNotBlank(Some(state.zoomIn))
+      case VK_DOWN => ifNotBlank(Some(state.zoomOut))
 
       case VK_SHIFT => if(state.mode==Dual1) Some(state.setMode(Dual1b)) else Some(state)
 
-      case VK_MINUS | VK_SUBTRACT => Some(state.minus)
-      case VK_PLUS | VK_ADD=> Some(state.plus)
+      case VK_MINUS | VK_SUBTRACT => ifNotBlank(Some(state.minus))
+      case VK_PLUS | VK_ADD=> ifNotBlank(Some(state.plus))
 
-      case VK_8 | VK_NUMPAD8 => Some(state.scrollUp)
-      case VK_2 | VK_NUMPAD2 => Some(state.scrollDown)
-      case VK_4 | VK_NUMPAD4 => Some(state.scrollLeft)
-      case VK_6 | VK_NUMPAD6 => Some(state.scrollRight)
+      case VK_8 | VK_NUMPAD8 => ifNotBlank(Some(state.scrollUp))
+      case VK_2 | VK_NUMPAD2 => ifNotBlank(Some(state.scrollDown))
+      case VK_4 | VK_NUMPAD4 => ifNotBlank(Some(state.scrollLeft))
+      case VK_6 | VK_NUMPAD6 => ifNotBlank(Some(state.scrollRight))
 
       case VK_Q => None
       case _ => Some(state)
@@ -164,12 +167,10 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel, initialSt
   override def mouseDragged(e: MouseEvent): Unit = {
     if(initialMouseDown!=null) {
       // signed for 'normal' dragging, image follows mouse
-      val dx = initialMouseDown.p.x - e.getX
-      val dy = initialMouseDown.p.y - e.getY
-      val multiplier = SENSITIVITY/state.zoomFactor
-      updateState(state.scrollTo(
-        initialMouseDown.h + multiplier*dx,
-        initialMouseDown.v + multiplier*dy))
+      val multiplier = SENSITIVITY / state.zoomFactor
+      val dx = (initialMouseDown.p.x - e.getX) * multiplier
+      val dy = (initialMouseDown.p.y - e.getY) * multiplier
+      updateState(state.scrollTo(initialMouseDown.h + dx, initialMouseDown.v + dy))
     } else {
       // initialMouseDown not available for drag event
     }
@@ -252,21 +253,24 @@ object EventHandler {
 
   def actions: List[String] = List("Dual 2 columns", "Dual 1 column");
 
-  private class ModeChangeListener(menuItems: List[MenuItem], handler: EventHandler) extends ActionListener {
+  private class ModeChangeListener(handler: EventHandler) extends ActionListener {
 
     override
     def actionPerformed(e: ActionEvent): Unit = {
-      val action = e.getActionCommand
-      val ix = actions.indexOf(e.getActionCommand)
-      actions.indices.foreach(ix2 => menuItems(ix2).setEnabled(ix2 != ix))
-      handler.changeMode(action)
+      val selected = e.getSource.asInstanceOf[MenuItem]
+      val menu = selected.getParent.asInstanceOf[Menu]
+      for (i <- 0 until menu.getItemCount) {
+        val item = menu.getItem(i)
+        item.setEnabled(item != selected)
+      }
+      handler.changeMode(e.getActionCommand)
     }
   }
 
   def addMenuItemsForModeMenu(menu:Menu, handler: EventHandler): Unit = {
     val items = actions.map(new MenuItem(_))
     items.head.setEnabled(false)
-    val listener = new ModeChangeListener(items, handler)
+    val listener = new ModeChangeListener(handler)
     items.foreach(item => item.addActionListener(listener))
     items.foreach(menu.add)
   }

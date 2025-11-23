@@ -22,14 +22,14 @@ import javax.swing.JFrame
 import javax.swing.WindowConstants.EXIT_ON_CLOSE
 import EventHandler.addMenuItemsForModeMenu
 import ReaderState.Mode.Dual2
-
 import ReaderState.{INITIAL_STATE, Mode}
+import CBZImages.Dimensions
 
 object DuoCBZReader {
 
   def main(args: Array[String]): Unit = {
 
-    val availableScreenSize: (width: Int, height: Int) = screenSize()
+    val availableScreenSize: (width: Int, height: Int) = screenSize
 
     val frame = new JFrame("CBZ Reader")
     frame.setUndecorated(true)
@@ -82,8 +82,7 @@ object DuoCBZReader {
     menuItem
   }
 
-  private def screenSize(): (width: Int, height: Int) = {
-
+  private def screenSize: Dimensions = {
     val ge = GraphicsEnvironment.getLocalGraphicsEnvironment
     val usableBounds: Rectangle = ge.getMaximumWindowBounds
     val width = usableBounds.getWidth.toInt
