@@ -83,7 +83,7 @@ case class ReaderState(
    zoomLevel: Int,
    hs: Double,
    vs: Double,
-   size: Size,                   
+   size: Size,
    direction:Direction,   
    showPageNumbers:Boolean                   
 ) extends AutoCloseable {
@@ -197,12 +197,24 @@ case class ReaderState(
 
 object ReaderState {
 
-  enum Mode {
-    case Blank, Single, Dual2, Dual1, Dual1b
+  trait MenuItemSource {
+    def selectable:Boolean
+    def description: String
   }
-  
-  enum Size {
-    case Image, Width
+
+  enum Mode(val description:String, val selectable:Boolean) extends MenuItemSource {
+    case Blank extends Mode("Blank", false)
+    case Single extends Mode("Single", false)
+    case Dual2 extends Mode("Dual 2 columns", true)
+    case Dual1 extends Mode("Dual 1 column", true)
+    case Dual1b extends Mode("Dual 1 column alt", false)
+  }
+
+  enum Size(val description:String) extends MenuItemSource {
+    case Image extends Size("Fit image")
+    case Width extends Size("Fit width")
+
+    def selectable:Boolean = true
   }
 
   def SCROLL_STEP = 0.125

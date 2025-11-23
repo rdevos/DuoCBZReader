@@ -20,9 +20,9 @@ import java.awt.event.{ItemEvent, ItemListener}
 import java.awt.{CheckboxMenuItem, GraphicsEnvironment, GridLayout, Menu, MenuBar, MenuItem, Rectangle}
 import javax.swing.JFrame
 import javax.swing.WindowConstants.EXIT_ON_CLOSE
-import EventHandler.{addMenuItemsForModeMenu, addMenuItemsForSizeMenu}
+import EventHandler.{addMenuItemsForEnumeratedMenu, fillModeMenu}
 import ReaderState.Mode.Dual2
-import ReaderState.{INITIAL_STATE, Mode}
+import ReaderState.{INITIAL_STATE, Mode, Size}
 import CBZImages.Dimensions
 
 object DuoCBZReader {
@@ -70,18 +70,16 @@ object DuoCBZReader {
   
   private def modeMenu(handler: EventHandler, mode: Mode): Menu = {
     val modeMenu = new Menu("Mode")
-    if(mode == Dual2) {
-      addMenuItemsForModeMenu(modeMenu, handler)
-    }
+    fillModeMenu(mode, modeMenu, handler);
     modeMenu
   }
 
   private def sizeMenu(handler: EventHandler): Menu = {
     val sizeMenu = new Menu("Size")
-    addMenuItemsForSizeMenu(sizeMenu, handler)
+    addMenuItemsForEnumeratedMenu(sizeMenu, Size.values.toList, handler,
+      (handler, tag) => handler.changeSize(tag))
     sizeMenu
   }
-
 
   private def checkBoxMenu(content: String, value: Boolean, itemListener: ItemListener): MenuItem = {
     val menuItem = new CheckboxMenuItem(content)

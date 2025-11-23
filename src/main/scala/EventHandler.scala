@@ -16,12 +16,11 @@
 
 package be.afront.reader
 
-import EventHandler.{SENSITIVITY, WHEEL_SENSITIVITY, addMenuItemsForModeMenu, open, selectFile}
+import EventHandler.{SENSITIVITY, WHEEL_SENSITIVITY, addMenuItemsForEnumeratedMenu, fillModeMenu, open, selectFile}
 import CBZImages.Direction.{LeftToRight, RightToLeft}
-import ReaderState.{Mode, Size}
+import ReaderState.{MenuItemSource, Mode, Size}
 import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single}
 import CBZImages.{Dimensions, Direction}
-
 import ReaderState.Size.{Image, Width}
 
 import java.awt.{FileDialog, Frame, Menu, MenuItem, Point}
@@ -76,24 +75,25 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel, initialSt
   private def updateState(newState:ReaderState, afterOpen:Boolean): Unit = {
     if(state.mode != newState.mode) {
       layoutChangeFor(newState)
+      frame.revalidate()
     }
     if(afterOpen) {
-      // do menubar
-      val menuBar = frame.getMenuBar
-      val menu = menuBar.getMenu(1)
-      menu.removeAll()
-      if (newState.mode == Dual2) {
-        addMenuItemsForModeMenu(menu, this)
-      }
+      updateMenuBar(newState.mode);
     }
     state = newState
     panel1.setNewState(newState)
     if (newState.state2 != null) panel2.setNewState(newState)
-    frame.revalidate()
 
     SwingUtilities.invokeLater { () =>
       frame.repaint()
     }
+  }
+  
+  private def updateMenuBar(newMode:Mode):Unit = {
+    val menuBar = frame.getMenuBar
+    val menu = menuBar.getMenu(1)
+    menu.removeAll()
+    fillModeMenu(newMode, menu, this);
   }
 
   private def updateStateForNewFiles(tuple:(files: List[File],mode: Mode,state: ReaderState)):Unit = {
@@ -205,25 +205,11 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel, initialSt
   def togglePageNumbers(newState: Int): Unit =
     updateState(state.setShowPageNumbers(newState == SELECTED))
 
-  def changeMode(newMode: String): Unit =
-    newMode match {
-      case "Dual 2 columns" => changeMode(Dual2)
-      case "Dual 1 column" => changeMode(Dual1)
-      case "Single" => changeMode(Single)
-    }
-
-  def changeSize(newSize: String): Unit =
-    newSize match {
-      case "Fit image" => changeSize(Image)
-      case "Fit width" => changeSize(Width)
-    }
-
   def changeMode(newMode:Mode):Unit =
     updateState(state.setMode(newMode))
 
   def changeSize(newSize:Size):Unit =
     updateState(state.setSize(newSize))
-
 
   override def mouseWheelMoved(e: MouseWheelEvent): Unit =
     updateState(state.scrollVertical(e.getWheelRotation * WHEEL_SENSITIVITY))
@@ -263,37 +249,30 @@ object EventHandler {
   }
 
 
-  private class ExclusiveChangeListener(handler: EventHandler, action:(EventHandler, String)=>Unit) extends ActionListener {
+  private class EnumeratedValueChangeListener[K <: MenuItemSource](handler: EventHandler, action:(EventHandler, K)=>Unit) extends ActionListener {
 
     override
     def actionPerformed(e: ActionEvent): Unit = {
-      val selected = e.getSource.asInstanceOf[MenuItem]
+      val selected: EnumeratedMenuItem[K] = e.getSource.asInstanceOf[EnumeratedMenuItem[K]]
       val menu = selected.getParent.asInstanceOf[Menu]
       for (i <- 0 until menu.getItemCount) {
         val item = menu.getItem(i)
         item.setEnabled(item != selected)
       }
-      action(handler, e.getActionCommand)
+      action(handler, selected.tag)
     }
   }
 
-  def addMenuItemsForMenu(menu: Menu, itemNames:List[String], handler: EventHandler, action:(EventHandler, String)=>Unit): Unit = {
-    val items = itemNames.map(new MenuItem(_))
+  def addMenuItemsForEnumeratedMenu[K <: MenuItemSource](menu: Menu, itemValues:List[K], handler: EventHandler, action:(EventHandler, K)=>Unit): Unit = {
+    val items = itemValues.filter(_.selectable).map(new EnumeratedMenuItem(_))
     items.head.setEnabled(false)
-    val listener = new ExclusiveChangeListener(handler, action)
+    val listener = new EnumeratedValueChangeListener(handler, action)
     items.foreach(item => item.addActionListener(listener))
     items.foreach(menu.add)
   }
-
-  def possibleModes: List[String] = List("Dual 2 columns", "Dual 1 column");
-
-  def addMenuItemsForModeMenu(menu:Menu, handler: EventHandler): Unit = {
-    addMenuItemsForMenu(menu, possibleModes, handler, (handler,arg) =>handler.changeMode(arg))
-  }
-
-  def possibleSizes: List[String] = List("Fit image", "Fit width");
-
-  def addMenuItemsForSizeMenu(menu: Menu, handler: EventHandler): Unit = {
-    addMenuItemsForMenu(menu, possibleSizes, handler, (handler,arg) =>handler.changeSize(arg))
-  }
+  
+  def fillModeMenu(currentMode:Mode, modeMenu:Menu, handler: EventHandler):Unit =
+    if (currentMode == Dual2)
+      addMenuItemsForEnumeratedMenu[Mode](modeMenu, Mode.values.toList, handler,
+        (handler, tag) => handler.changeMode(tag))
 }

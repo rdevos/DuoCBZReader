@@ -18,7 +18,7 @@ package be.afront.reader
 
 import ImagePanel.indicatorFont
 
-import be.afront.reader.ReaderState.Size.Width
+import ReaderState.Size.Width
 
 import java.awt.{Color, Font, Graphics, Graphics2D}
 import java.awt.RenderingHints.{KEY_INTERPOLATION, VALUE_INTERPOLATION_BILINEAR}
