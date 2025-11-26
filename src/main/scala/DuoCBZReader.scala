@@ -1,5 +1,5 @@
 /*
-  Copyright 2025 Paul Janssens
+  Copyright 2025 Paul Janssens - All rights reserved
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -17,13 +17,14 @@
 package be.afront.reader
 
 import java.awt.event.{ItemEvent, ItemListener}
-import java.awt.{CheckboxMenuItem, GraphicsEnvironment, GridLayout, Menu, MenuBar, MenuItem, Rectangle}
-import javax.swing.JFrame
+import java.awt.{CheckboxMenuItem, Desktop, GraphicsEnvironment, GridLayout, Menu, MenuBar, MenuItem, Rectangle}
+import javax.swing.{ImageIcon, JFrame, JOptionPane}
 import javax.swing.WindowConstants.EXIT_ON_CLOSE
 import EventHandler.{addMenuItemsForEnumeratedMenu, fillModeMenu}
-import ReaderState.Mode.Dual2
 import ReaderState.{INITIAL_STATE, Mode, Size}
 import CBZImages.Dimensions
+
+import java.awt.desktop.{AboutEvent, AboutHandler}
 
 object DuoCBZReader {
 
@@ -46,6 +47,7 @@ object DuoCBZReader {
     frame.setMenuBar(initMenus(handler, state.mode))
     frame.setVisible(true)
     frame.requestFocusInWindow()
+    replaceAboutWindow()
   }
 
   private def initMenus(handler: EventHandler, mode: Mode): MenuBar = {
@@ -94,5 +96,23 @@ object DuoCBZReader {
     val width = usableBounds.getWidth.toInt
     val height = usableBounds.getHeight.toInt
     (width, height)
+  }
+
+  private def replaceAboutWindow():Unit = {
+    if (Desktop.isDesktopSupported) {
+      val desktop = Desktop.getDesktop
+      val iconPath = "/icon_128x128.png"
+      val iconUrl = getClass.getResource(iconPath)
+      val icon = if (iconUrl != null) new ImageIcon(iconUrl) else null
+
+      desktop.setAboutHandler(new AboutHandler() {
+        def handleAbout(e: AboutEvent): Unit = {
+          JOptionPane.showMessageDialog(null,
+            "DuoCBZReader\nVersion 1.0.0\nCopyright © 2025 Paul Janssens\nAll rights reserved.",
+            "About DuoCbzReader",
+            JOptionPane.INFORMATION_MESSAGE, icon)
+        }
+      })
+    }
   }
 }

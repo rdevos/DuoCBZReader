@@ -1,5 +1,5 @@
 /*
-  Copyright 2025 Paul Janssens
+  Copyright 2025 Paul Janssens - All rights reserved
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -20,9 +20,9 @@ import ReaderState.{Mode, SCROLL_STEP, Size, ZOOM_STEP}
 import CBZImages.Direction
 import CBZImages.Direction.LeftToRight
 
-import be.afront.reader.PartialState.fromImage
-import be.afront.reader.ReaderState.Mode.{Blank, Dual1, Dual1b, Single}
-import be.afront.reader.ReaderState.Size.Image
+import PartialState.fromImage
+import ReaderState.Mode.{Blank, Dual1, Dual1b, Single}
+import ReaderState.Size.Image
 
 import java.awt.image.BufferedImage
 import java.io.File

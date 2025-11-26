@@ -17,6 +17,11 @@ this will create
 or
     run.sh
 
+## to build a standalone app for macos
+
+cd to scripts and run jlink.sh
+
+
 # menu
 
 - Right To Left: enables/disables Right To Left mode, if enabled
