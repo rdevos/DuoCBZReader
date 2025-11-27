@@ -6,7 +6,7 @@ JDK_MAJOR=$(jlink --version | cut -d '.' -f 1)
 
 # Avoid warnings but still support older JDKs
 
-if [ "$JDK_MAJOR" -ge 14 ]; then
+if [ "$JDK_MAJOR" -ge 21 ]; then
     COMPRESS="--compress=zip-6"
 else
     COMPRESS="--compress=2"
