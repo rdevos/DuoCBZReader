@@ -16,26 +16,28 @@
 
 package be.afront.reader
 
-import EventHandler.{SENSITIVITY, WHEEL_SENSITIVITY, addMenuItemsForEnumeratedMenu, fillModeMenu, open, selectFile}
+import EventHandler.{SENSITIVITY, WHEEL_SENSITIVITY, addMenuItemsForEnumeratedMenu, fillModeMenu, open, openSelectedFiles, selectFile}
 import CBZImages.Direction.{LeftToRight, RightToLeft}
 import ReaderState.{MenuItemSource, Mode, Size}
 import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single}
 import CBZImages.{Dimensions, Direction}
 import ReaderState.Size.{Image, Width}
-
+import java.awt.desktop.{OpenFilesEvent, OpenFilesHandler}
 import java.awt.{FileDialog, Frame, Menu, MenuItem, Point}
 import java.awt.event.{ActionEvent, ActionListener, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener, MouseWheelEvent, MouseWheelListener}
 import javax.swing.{JFrame, SwingUtilities}
 import java.awt.event.KeyEvent.{VK_2, VK_4, VK_6, VK_8, VK_ADD, VK_DOWN, VK_LEFT, VK_MINUS, VK_NUMPAD2, VK_NUMPAD4, VK_NUMPAD6, VK_NUMPAD8, VK_PLUS, VK_Q, VK_RIGHT, VK_SHIFT, VK_SUBTRACT, VK_UP}
 import java.io.File
 import java.awt.event.ItemEvent.SELECTED
+import scala.jdk.CollectionConverters.given
 
 class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel, initialState:ReaderState, screenSize:Dimensions)
   extends KeyListener
     with MouseMotionListener
     with MouseWheelListener
     with MouseListener
-    with ActionListener{
+    with ActionListener
+    with OpenFilesHandler {
 
   private def init():Unit = {
     frame.addKeyListener(this)
@@ -213,6 +215,14 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel, initialSt
 
   override def mouseWheelMoved(e: MouseWheelEvent): Unit =
     updateState(state.scrollVertical(e.getWheelRotation * WHEEL_SENSITIVITY))
+
+  override
+  def openFiles(e: OpenFilesEvent): Unit = {
+    val paths = e.getFiles.asScala.toList
+    if (paths.nonEmpty) {
+      updateStateForNewFiles(openSelectedFiles(state.size, state.direction, state.showPageNumbers, paths.take(2)))
+    }
+  }
 }
 
 object EventHandler {
@@ -236,8 +246,11 @@ object EventHandler {
   }
 
   def open(size:Size, direction:Direction, showPageNumbers:Boolean): (files: List[File],mode: Mode,state: ReaderState) = {
-    val files:List[File] = selectFile("select 1st file").toList ++ selectFile("select 2nd file").toList
+    val files: List[File] = selectFile("select 1st file").toList ++ selectFile("select 2nd file").toList
+    openSelectedFiles(size, direction, showPageNumbers, files)
+  }
 
+  def openSelectedFiles(size:Size, direction:Direction, showPageNumbers:Boolean, files:List[File]) : (files: List[File],mode: Mode,state: ReaderState) = {
     val mode = if (files.size == 2) Dual2 else if (files.size == 1) Single else Blank
 
     val state = mode match {
@@ -247,7 +260,6 @@ object EventHandler {
     }
     (files,mode,state)
   }
-
 
   private class EnumeratedValueChangeListener[K <: MenuItemSource](handler: EventHandler, action:(EventHandler, K)=>Unit) extends ActionListener {
 

@@ -47,7 +47,7 @@ object DuoCBZReader {
     frame.setMenuBar(initMenus(handler, state.mode))
     frame.setVisible(true)
     frame.requestFocusInWindow()
-    replaceAboutWindow()
+    setupDesktop(handler)
   }
 
   private def initMenus(handler: EventHandler, mode: Mode): MenuBar = {
@@ -98,7 +98,7 @@ object DuoCBZReader {
     (width, height)
   }
 
-  private def replaceAboutWindow():Unit = {
+  private def setupDesktop(handler: EventHandler):Unit = {
     if (Desktop.isDesktopSupported) {
       val desktop = Desktop.getDesktop
       val iconPath = "/icon_128x128.png"
@@ -108,11 +108,14 @@ object DuoCBZReader {
       desktop.setAboutHandler(new AboutHandler() {
         def handleAbout(e: AboutEvent): Unit = {
           JOptionPane.showMessageDialog(null,
-            "DuoCBZReader\nVersion 1.0.0\nCopyright © 2025 Paul Janssens\nAll rights reserved.",
+            "DuoCBZReader\nVersion 1.0.1\nCopyright © 2025 Paul Janssens\nAll rights reserved.",
             "About DuoCbzReader",
             JOptionPane.INFORMATION_MESSAGE, icon)
         }
       })
+
+      if (desktop.isSupported(Desktop.Action.APP_OPEN_FILE))
+        desktop.setOpenFileHandler(handler)
     }
   }
 }
