@@ -27,7 +27,7 @@ import java.io.File
 import javax.imageio.{ImageIO, ImageReader}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
-import scala.util.Using
+import scala.util.{Try, Using}
 
 class CBZImages(file: File) extends AutoCloseable {
 
@@ -116,6 +116,8 @@ object CBZImages {
 
   type Dimensions = (width: Int, height: Int)
 
+  type FileCheck = (file: File, image: Try[CBZImages])
+
   enum Side {
     case Left, Right
   }
@@ -171,4 +173,8 @@ object CBZImages {
         (width = r.getWidth(0), height = r.getHeight(0))
       }
     }.toOption.flatten
+
+
+  def checkFile(file:File):FileCheck =
+    (file, Try(new CBZImages(file)))  
 }

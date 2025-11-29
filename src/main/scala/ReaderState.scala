@@ -25,7 +25,6 @@ import ReaderState.Mode.{Blank, Dual1, Dual1b, Single}
 import ReaderState.Size.Image
 
 import java.awt.image.BufferedImage
-import java.io.File
 import scala.math.pow
 
 type PageSkip = (state:PartialState, success:Boolean)
@@ -222,9 +221,6 @@ object ReaderState {
 
   def INITIAL_STATE = new ReaderState(Mode.Blank, null, null, Image, LeftToRight, true);
 
-  def apply(mode:Mode, file1:File, file2:File, size:Size, direction:Direction, showPageNumbers:Boolean): ReaderState =
-    new ReaderState(mode,
-      Option(file1).map(new CBZImages(_)).orNull,
-      Option(file2).map(new CBZImages(_)).orNull,
-      size, direction, showPageNumbers)
+  def apply(mode:Mode, file1:CBZImages, file2:CBZImages, size:Size, direction:Direction, showPageNumbers:Boolean): ReaderState =
+    new ReaderState(mode,file1,file2,size, direction, showPageNumbers)
 }

@@ -16,22 +16,23 @@
 
 package be.afront.reader
 
-import EventHandler.{SENSITIVITY, WHEEL_SENSITIVITY, addMenuItemsForEnumeratedMenu, fillModeMenu, open, openSelectedFiles, selectFile}
+import EventHandler.{SENSITIVITY, WHEEL_SENSITIVITY, handle, fillModeMenu, open, openSelectedFiles}
 import CBZImages.Direction.{LeftToRight, RightToLeft}
 import ReaderState.{MenuItemSource, Mode, Size}
 import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single}
-import CBZImages.{Dimensions, Direction}
-import ReaderState.Size.{Image, Width}
+import CBZImages.{Dimensions, Direction, FileCheck, checkFile}
 
 import java.awt.desktop.{OpenFilesEvent, OpenFilesHandler}
 import java.awt.{FileDialog, Frame, Menu, MenuItem, Point}
 import java.awt.event.{ActionEvent, ActionListener, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener, MouseWheelEvent, MouseWheelListener}
 import javax.swing.{JFrame, SwingUtilities}
 import java.awt.event.KeyEvent.{VK_2, VK_4, VK_6, VK_8, VK_ADD, VK_DOWN, VK_LEFT, VK_MINUS, VK_NUMPAD2, VK_NUMPAD4, VK_NUMPAD6, VK_NUMPAD8, VK_PLUS, VK_Q, VK_RIGHT, VK_SHIFT, VK_SUBTRACT, VK_UP}
-import java.io.File
 import java.awt.event.ItemEvent.SELECTED
-import java.util.ResourceBundle
+import java.io.File
+import scala.List
 import scala.jdk.CollectionConverters.given
+import scala.util.{Failure, Success, Try}
+
 
 class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
                    initialState:ReaderState, screenSize:Dimensions, lookup:ResourceLookup)
@@ -101,7 +102,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     fillModeMenu(newMode, menu, this, lookup);
   }
 
-  private def updateStateForNewFiles(tuple:(files: List[File],mode: Mode,state: ReaderState)):Unit = {
+  private def updateStateForNewFiles(tuple:(files: List[CBZImages],mode: Mode,state: ReaderState)):Unit = {
     updateState(tuple.state, true)
   }
 
@@ -223,7 +224,13 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   def openFiles(e: OpenFilesEvent): Unit = {
     val paths = e.getFiles.asScala.toList
     if (paths.nonEmpty) {
-      updateStateForNewFiles(openSelectedFiles(state.size, state.direction, state.showPageNumbers, paths.take(2)))
+      val images = paths.take(2).map(checkFile).flatMap((checkResult:FileCheck) => checkResult match {
+        case (file, Failure(err)) => {
+          handle(file, err);None
+        }
+        case (file, Success(image)) => Some(image)
+      })
+      updateStateForNewFiles(openSelectedFiles(state.size, state.direction, state.showPageNumbers, images))
     }
   }
 }
@@ -234,7 +241,7 @@ object EventHandler {
   val WHEEL_SENSITIVITY = 0.01
 
 
-  def selectFile(prompt: String): Option[File] = {
+  def selectFile(prompt: String): Option[FileCheck] = {
     val dummyFrame = new Frame()
     dummyFrame.setSize(0, 0)
 
@@ -245,15 +252,34 @@ object EventHandler {
     dialog.dispose()
     dummyFrame.dispose()
 
-    if(files.isEmpty) None else Some(files(0))
+    if(files.isEmpty) None else Some(checkFile(files(0)))
   }
 
-  def open(size:Size, direction:Direction, showPageNumbers:Boolean): (files: List[File],mode: Mode,state: ReaderState) = {
-    val files: List[File] = selectFile("select 1st file").toList ++ selectFile("select 2nd file").toList
-    openSelectedFiles(size, direction, showPageNumbers, files)
+  @annotation.tailrec
+  def selectFileLoop(prompt:String): Option[CBZImages] = {
+    selectFile(prompt) match {
+      case Some((file, Failure(err))) => { handle(file, err); selectFileLoop(prompt) }
+      case Some((file, Success(image))) => Some(image)
+      case None => None
+    }
   }
 
-  def openSelectedFiles(size:Size, direction:Direction, showPageNumbers:Boolean, files:List[File]) : (files: List[File],mode: Mode,state: ReaderState) = {
+  def handle(file:File, err:Throwable):Unit = {
+    val dummyOwner = new Frame()
+    dummyOwner.setVisible(false)
+    val simpleFileName = file.getName
+    val alert = new AlertDialog(dummyOwner, s"Failed to open \"$simpleFileName\"", err.getMessage)
+    alert.setLocationRelativeTo(null)
+    alert.setVisible(true)
+    dummyOwner.dispose()
+  }
+
+  def open(size:Size, direction:Direction, showPageNumbers:Boolean): (files: List[CBZImages],mode: Mode,state: ReaderState) = {
+    openSelectedFiles(size, direction, showPageNumbers,
+      List(selectFileLoop("select first file"), selectFileLoop("select 2nd file")).flatten)
+  }
+
+  def openSelectedFiles(size:Size, direction:Direction, showPageNumbers:Boolean, files:List[CBZImages]) : (files: List[CBZImages],mode: Mode,state: ReaderState) = {
     val mode = if (files.size == 2) Dual2 else if (files.size == 1) Single else Blank
 
     val state = mode match {
@@ -280,7 +306,7 @@ object EventHandler {
 
   def addMenuItemsForEnumeratedMenu[K <: MenuItemSource](menu: Menu, itemValues:List[K],
       handler: EventHandler,
-      lookup:ResourceLookup, 
+      lookup:ResourceLookup,
       action:(EventHandler, K)=>Unit): Unit = {
     val items = itemValues.filter(_.selectable).map(q => new EnumeratedMenuItem(q, lookup(q)))
     items.head.setEnabled(false)
