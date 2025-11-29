@@ -16,8 +16,7 @@
 
 package be.afront.reader
 
-import ReaderState.MenuItemSource
+trait ResourceKey {
 
-import java.awt.MenuItem
-
-class EnumeratedMenuItem[K <: MenuItemSource](val tag: K, label:String) extends MenuItem(label)
+  def description:String
+}

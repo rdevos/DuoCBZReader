@@ -24,15 +24,19 @@ import EventHandler.{addMenuItemsForEnumeratedMenu, fillModeMenu}
 import ReaderState.{INITIAL_STATE, Mode, Size}
 import CBZImages.Dimensions
 
+import be.afront.reader.ResourceLookup.{Label, MenuItemKey, MenuKey, MessageKey}
+
 import java.awt.desktop.{AboutEvent, AboutHandler}
+import java.util.{Locale, ResourceBundle}
 
 object DuoCBZReader {
 
   def main(args: Array[String]): Unit = {
 
     val availableScreenSize: (width: Int, height: Int) = screenSize
-
-    val frame = new JFrame("CBZ Reader")
+    val lookup = ResourceLookup(Locale.getDefault)
+    
+    val frame = new JFrame(lookup(Label.Application))
     frame.setUndecorated(true)
     frame.setDefaultCloseOperation(EXIT_ON_CLOSE)
     frame.setResizable(false)
@@ -42,46 +46,53 @@ object DuoCBZReader {
     val panel1 = new ImagePanel(state, 0)
     val panel2 = new ImagePanel(state, 1)
 
-    val handler = new EventHandler(frame, panel1, panel2, state, availableScreenSize)
+    val handler = new EventHandler(frame, panel1, panel2, state, availableScreenSize, lookup)
 
-    frame.setMenuBar(initMenus(handler, state.mode))
+    frame.setMenuBar(initMenus(handler, state.mode, lookup))
     frame.setVisible(true)
     frame.requestFocusInWindow()
-    setupDesktop(handler)
+    setupDesktop(handler, lookup)
   }
 
-  private def initMenus(handler: EventHandler, mode: Mode): MenuBar = {
+  private def initMenus(handler: EventHandler, mode: Mode, lookup:ResourceLookup): MenuBar = {
     val menuBar = new MenuBar()
-    menuBar.add(fileMenu(handler))
-    menuBar.add(modeMenu(handler, mode))
-    menuBar.add(sizeMenu(handler))
+    menuBar.add(fileMenu(handler, lookup))
+    menuBar.add(modeMenu(handler, mode, lookup))
+    menuBar.add(sizeMenu(handler, lookup))
+    menuBar.add(optionsMenu(handler, lookup))
     menuBar
   }
 
-  private def fileMenu(handler: EventHandler): Menu = {
-    val fileMenu = new Menu("File")
-    val openItem = new MenuItem("Open")
+  private def fileMenu(handler: EventHandler, lookup:ResourceLookup): Menu = {
+    val fileMenu = new Menu(lookup(MenuKey.File))
+    val openItem = new MenuItem(lookup(MenuItemKey.Open))
     openItem.addActionListener(handler)
     fileMenu.add(openItem)
-    fileMenu.add(checkBoxMenu("Right To Left", false,
-      (e: ItemEvent) => handler.directionChange(e.getStateChange)))
-    fileMenu.add(checkBoxMenu("Show Page Numbers", true,
-      (e: ItemEvent) => handler.togglePageNumbers(e.getStateChange)))
     fileMenu
   }
   
-  private def modeMenu(handler: EventHandler, mode: Mode): Menu = {
-    val modeMenu = new Menu("Mode")
-    fillModeMenu(mode, modeMenu, handler);
+  private def modeMenu(handler: EventHandler, mode: Mode, lookup:ResourceLookup): Menu = {
+    val modeMenu = new Menu(lookup(MenuKey.Mode))
+    fillModeMenu(mode, modeMenu, handler, lookup);
     modeMenu
   }
 
-  private def sizeMenu(handler: EventHandler): Menu = {
-    val sizeMenu = new Menu("Size")
-    addMenuItemsForEnumeratedMenu(sizeMenu, Size.values.toList, handler,
+  private def sizeMenu(handler: EventHandler, lookup:ResourceLookup): Menu = {
+    val sizeMenu = new Menu(lookup(MenuKey.Size))
+    addMenuItemsForEnumeratedMenu(sizeMenu, Size.values.toList, handler, lookup,
       (handler, tag) => handler.changeSize(tag))
     sizeMenu
   }
+
+  private def optionsMenu(handler: EventHandler, lookup:ResourceLookup): Menu = {
+    val optionsMenu = new Menu(lookup(MenuKey.Options))
+    optionsMenu.add(checkBoxMenu(lookup(MenuItemKey.RightToLeft), false,
+      (e: ItemEvent) => handler.directionChange(e.getStateChange)))
+    optionsMenu.add(checkBoxMenu(lookup(MenuItemKey.PageNumbers), true,
+      (e: ItemEvent) => handler.togglePageNumbers(e.getStateChange)))
+    optionsMenu
+  }
+
 
   private def checkBoxMenu(content: String, value: Boolean, itemListener: ItemListener): MenuItem = {
     val menuItem = new CheckboxMenuItem(content)
@@ -98,7 +109,7 @@ object DuoCBZReader {
     (width, height)
   }
 
-  private def setupDesktop(handler: EventHandler):Unit = {
+  private def setupDesktop(handler: EventHandler, lookup:ResourceLookup):Unit = {
     if (Desktop.isDesktopSupported) {
       val desktop = Desktop.getDesktop
       val iconPath = "/icon_128x128.png"
@@ -108,8 +119,8 @@ object DuoCBZReader {
       desktop.setAboutHandler(new AboutHandler() {
         def handleAbout(e: AboutEvent): Unit = {
           JOptionPane.showMessageDialog(null,
-            "DuoCBZReader\nVersion 1.0.1\nCopyright © 2025 Paul Janssens\nAll rights reserved.",
-            "About DuoCbzReader",
+            lookup(MessageKey.Copyright),
+            lookup(MessageKey.About),
             JOptionPane.INFORMATION_MESSAGE, icon)
         }
       })

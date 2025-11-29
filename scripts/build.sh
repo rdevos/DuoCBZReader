@@ -28,7 +28,7 @@ jpackage --name DuoCBZReader \
          --runtime-image custom-jre \
          --dest output \
          --copyright "Copyright 2025 Paul Janssens - All rights reserved" \
-         --app-version "1.0.1" \
+         --app-version "1.0.2" \
          --file-associations zip.properties \
          --file-associations cbz.properties \
          --icon MyIcon.icns \

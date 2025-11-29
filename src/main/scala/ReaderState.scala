@@ -197,22 +197,21 @@ case class ReaderState(
 
 object ReaderState {
 
-  trait MenuItemSource {
+  trait MenuItemSource extends ResourceKey {
     def selectable:Boolean
-    def description: String
   }
 
   enum Mode(val description:String, val selectable:Boolean) extends MenuItemSource {
     case Blank extends Mode("Blank", false)
     case Single extends Mode("Single", false)
-    case Dual2 extends Mode("Dual 2 columns", true)
-    case Dual1 extends Mode("Dual 1 column", true)
+    case Dual2 extends Mode("MENU_ITEM_Dual_2_columns", true)
+    case Dual1 extends Mode("MENU_ITEM_Dual_1_column", true)
     case Dual1b extends Mode("Dual 1 column alt", false)
   }
 
   enum Size(val description:String) extends MenuItemSource {
-    case Image extends Size("Fit image")
-    case Width extends Size("Fit width")
+    case Image extends Size("MENU_ITEM_Fit_image")
+    case Width extends Size("MENU_ITEM_Fit_width")
 
     def selectable:Boolean = true
   }

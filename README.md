@@ -1,11 +1,12 @@
 
 # how to run
 
-(assuming java is installed)
+you will need a java JDK and a development environment that can compile scala,
+e.g. IntelliJ with the scala plugin
 
 ## if sources are out of date:
 
-run
+run the sbt task
     sbt assembly
 
 this will create
@@ -22,16 +23,38 @@ or
 cd to scripts and run jlink.sh
 
 
-# menu
+# Menus
+
+## Open menu
+
+- Open: open up to two files
+
+## Layout menu
+
+if two files are open
+
+- Side by Side: to display the two files side by side 
+
+- Alternating: to switch between files using the shift key
+
+## Size menu
+ 
+- Fit Image: if no zoom is applied, the image will fit to the panel
+
+- Fit Width: If no zoom is applied, the image will use all the available width
+
+## Options menu
+
+- ShowPage Numbers: if enabled, page numbers are shown in the lower left of the panel
 
 - Right To Left: enables/disables Right To Left mode, if enabled
 
-  - the primary comic will be on the left,
+  - the primary file will be on the left,
 
   - wide images will be split right hand half first
   - cursor left will advance pages, cursor right goes backwards.
 
-# keys
+# Keys and Mouse
 
 - q: Quit
 
