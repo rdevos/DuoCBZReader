@@ -28,10 +28,23 @@ jpackage --name DuoCBZReader \
          --runtime-image custom-jre \
          --dest output \
          --copyright "Copyright 2025 Paul Janssens - All rights reserved" \
-         --app-version "1.0.2" \
+         --app-version "1.0.3" \
          --file-associations zip.properties \
          --file-associations cbz.properties \
+         --file-associations epub.properties \
          --icon MyIcon.icns \
          --mac-package-identifier be.afront.reader
 
-plutil -replace CFBundleDocumentTypes.0 -xml '<dict><key>CFBundleTypeName</key><string>ZIP Archive</string><key>CFBundleTypeRole</key><string>Viewer</string><key>LSHandlerRank</key><string>Alternate</string><key>LSItemContentTypes</key><array><string>public.zip-archive</string></array></dict>' output/DuoCBZReader.app/Contents/Info.plist
+plutil -replace CFBundleDocumentTypes.0 -xml '<dict>
+<key>CFBundleTypeName</key><string>ZIP Archive</string>
+<key>CFBundleTypeRole</key><string>Viewer</string>
+<key>LSHandlerRank</key><string>Alternate</string>
+<key>LSItemContentTypes</key><array><string>public.zip-archive</string></array>
+</dict>' output/DuoCBZReader.app/Contents/Info.plist
+
+plutil -insert CFBundleDocumentTypes.1 -xml '<dict>
+<key>CFBundleTypeName</key><string>EPUB Document</string>
+<key>CFBundleTypeRole</key><string>Viewer</string>
+<key>LSHandlerRank</key><string>Alternate</string>
+<key>LSItemContentTypes</key><array><string>org.idpf.epub-container</string></array>
+</dict>' output/DuoCBZReader.app/Contents/Info.plist
