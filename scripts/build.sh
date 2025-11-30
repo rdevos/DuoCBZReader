@@ -33,3 +33,5 @@ jpackage --name DuoCBZReader \
          --file-associations cbz.properties \
          --icon MyIcon.icns \
          --mac-package-identifier be.afront.reader
+
+plutil -replace CFBundleDocumentTypes.0 -xml '<dict><key>CFBundleTypeName</key><string>ZIP Archive</string><key>CFBundleTypeRole</key><string>Viewer</string><key>LSHandlerRank</key><string>Alternate</string><key>LSItemContentTypes</key><array><string>public.zip-archive</string></array></dict>' output/DuoCBZReader.app/Contents/Info.plist
