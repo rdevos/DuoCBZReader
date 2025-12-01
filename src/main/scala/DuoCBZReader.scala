@@ -17,17 +17,16 @@
 package be.afront.reader
 
 import java.awt.event.{ItemEvent, ItemListener}
-import java.awt.{CheckboxMenuItem, Desktop, GraphicsEnvironment, GridLayout, Menu, MenuBar, MenuItem, Rectangle}
+import java.awt.{CheckboxMenuItem, Desktop, Dimension, GraphicsEnvironment, GridLayout, Menu, MenuBar, MenuItem, Rectangle}
 import javax.swing.{ImageIcon, JFrame, JOptionPane}
 import javax.swing.WindowConstants.EXIT_ON_CLOSE
 import EventHandler.{addMenuItemsForEnumeratedMenu, fillModeMenu}
 import ReaderState.{INITIAL_STATE, Mode, Size}
 import CBZImages.Dimensions
-
-import be.afront.reader.ResourceLookup.{Label, MenuItemKey, MenuKey, MessageKey}
+import ResourceLookup.{Label, MenuItemKey, MenuKey, MessageKey}
 
 import java.awt.desktop.{AboutEvent, AboutHandler}
-import java.util.{Locale, ResourceBundle}
+import java.util.Locale
 
 object DuoCBZReader {
 
@@ -37,9 +36,11 @@ object DuoCBZReader {
     val lookup = ResourceLookup(Locale.getDefault)
     
     val frame = new JFrame(lookup(Label.Application))
-    frame.setUndecorated(true)
+    frame.setUndecorated(false)
     frame.setDefaultCloseOperation(EXIT_ON_CLOSE)
-    frame.setResizable(false)
+    frame.setResizable(true)
+    frame.setMinimumSize(new Dimension(300, 0))
+
     frame.setLayout(new GridLayout(1, 2))
 
     val state:ReaderState = INITIAL_STATE
