@@ -35,6 +35,8 @@ class CBZImages(file: File) extends AutoCloseable {
 
   private val zipFile: ZipFile = ZipFile.builder()
     .setFile(file)
+    // this might take a bit of figuring out, because you may want to have different default encodings for primary and main files
+    //.setCharset("CP932")
     .get()
   
   private val rootEntries: List[ZipArchiveEntry] = {
@@ -123,7 +125,7 @@ class CBZImages(file: File) extends AutoCloseable {
 
 object CBZImages {
 
-  type Dimensions = (width: Int, height: Int, depth:Int)
+  type Dimensions = (width: Int, height: Int, depth:Int, size:Long)
 
   type FileCheck = (file: File, image: Try[CBZImages])
 
@@ -173,14 +175,14 @@ object CBZImages {
       val in = use(zipFile.getInputStream(entry))
       val iis = use(ImageIO.createImageInputStream(in))
       val readers = ImageIO.getImageReaders(iis).asScala.to(LazyList)
-      readers.flatMap { reader => tryReadDimensions(use, reader, iis) }.headOption
+      readers.flatMap { reader => tryReadDimensions(use, reader, iis, entry.getSize) }.headOption
     }.toOption.flatten
 
-  private def tryReadDimensions(use:Using.Manager, reader:ImageReader, input:ImageInputStream):Option[Dimensions] =
+  private def tryReadDimensions(use:Using.Manager, reader:ImageReader, input:ImageInputStream, uncompressedSize:Long):Option[Dimensions] =
     Try {
       reader.setInput(input)
       val r = use(reader)
-      (width = r.getWidth(0), height = r.getHeight(0), depth = totalBitDepth(r.getRawImageType(0)))
+      (width = r.getWidth(0), height = r.getHeight(0), depth = totalBitDepth(r.getRawImageType(0)), size = uncompressedSize)
     }.toOption
 
   private def totalBitDepth(specifier: ImageTypeSpecifier): Int =

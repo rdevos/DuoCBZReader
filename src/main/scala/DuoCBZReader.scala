@@ -20,7 +20,7 @@ import java.awt.event.{ItemEvent, ItemListener}
 import java.awt.{CheckboxMenuItem, Desktop, Dimension, GraphicsEnvironment, GridLayout, Menu, MenuBar, MenuItem, Rectangle}
 import javax.swing.{ImageIcon, JFrame, JOptionPane}
 import javax.swing.WindowConstants.EXIT_ON_CLOSE
-import EventHandler.{addMenuItemsForEnumeratedMenu, fillModeMenu}
+import EventHandler.{menuItemsForEnumeratedMenu, modeMenuItems}
 import ReaderState.{INITIAL_STATE, Mode, Size}
 import CBZImages.Dimensions
 import ResourceLookup.{Label, MenuItemKey, MenuKey, MessageKey}
@@ -32,7 +32,7 @@ object DuoCBZReader {
 
   def main(args: Array[String]): Unit = {
 
-    val availableScreenSize: (width: Int, height: Int, depth:Int) = screenSize
+    val availableScreenSize: (width: Int, height: Int, depth:Int, size:Long) = screenSize
     val lookup = ResourceLookup(Locale.getDefault)
     
     val frame = new JFrame(lookup(Label.Application))
@@ -47,74 +47,71 @@ object DuoCBZReader {
     val panel1 = new ImagePanel(state, 0)
     val panel2 = new ImagePanel(state, 1)
 
-    val handler = new EventHandler(frame, panel1, panel2, state, availableScreenSize, lookup)
+    given ResourceLookup = lookup
+    val handler = new EventHandler(frame, panel1, panel2, state, availableScreenSize)
+    given EventHandler = handler
 
-    frame.setMenuBar(initMenus(handler, state.mode, lookup))
+    frame.setMenuBar(initMenus(state.mode))
     frame.setVisible(true)
     frame.requestFocusInWindow()
-    setupDesktop(handler, lookup)
+    setupDesktop
   }
 
-  private def initMenus(handler: EventHandler, mode: Mode, lookup:ResourceLookup): MenuBar = {
+  private def initMenus(mode: Mode)(using EventHandler, ResourceLookup): MenuBar = {
     val menuBar = new MenuBar()
-    menuBar.add(fileMenu(handler, lookup))
-    menuBar.add(modeMenu(handler, mode, lookup))
-    menuBar.add(sizeMenu(handler, lookup))
-    menuBar.add(optionsMenu(handler, lookup))
+    menuBar.add(fileMenu)
+    menuBar.add(modeMenu(mode))
+    menuBar.add(sizeMenu)
+    menuBar.add(optionsMenu)
     menuBar
   }
 
-  private def fileMenu(handler: EventHandler, lookup:ResourceLookup): Menu = {
-    val fileMenu = new Menu(lookup(MenuKey.File))
-    val openItem = new MenuItem(lookup(MenuItemKey.Open))
-    openItem.addActionListener(handler)
-    fileMenu.add(openItem)
-    val infoItem = new MenuItem(lookup(MenuItemKey.Info))
-    infoItem.addActionListener(handler)
-    fileMenu.add(infoItem)
-    fileMenu
-  }
-  
-  private def modeMenu(handler: EventHandler, mode: Mode, lookup:ResourceLookup): Menu = {
-    val modeMenu = new Menu(lookup(MenuKey.Mode))
-    fillModeMenu(mode, modeMenu, handler, lookup);
-    modeMenu
+  private def localizedMenu(key:MenuKey, items:List[MenuItem])(using lookup:ResourceLookup): Menu = {
+    val menu = new Menu(lookup(key))
+    items.foreach(menu.add)
+    menu
   }
 
-  private def sizeMenu(handler: EventHandler, lookup:ResourceLookup): Menu = {
-    val sizeMenu = new Menu(lookup(MenuKey.Size))
-    addMenuItemsForEnumeratedMenu(sizeMenu, Size.values.toList, handler, lookup,
-      (handler, tag) => handler.changeSize(tag))
-    sizeMenu
-  }
+  private def menuItem(key: MenuItemKey)(using handler: EventHandler, lookup: ResourceLookup): MenuItem =
+    val item = new MenuItem(lookup(key))
+    item.setActionCommand(key.description)
+    item.addActionListener(handler)
+    item
 
-  private def optionsMenu(handler: EventHandler, lookup:ResourceLookup): Menu = {
-    val optionsMenu = new Menu(lookup(MenuKey.Options))
-    optionsMenu.add(checkBoxMenu(lookup(MenuItemKey.RightToLeft), false,
-      (e: ItemEvent) => handler.directionChange(e.getStateChange)))
-    optionsMenu.add(checkBoxMenu(lookup(MenuItemKey.PageNumbers), true,
-      (e: ItemEvent) => handler.togglePageNumbers(e.getStateChange)))
-    optionsMenu
-  }
-
-
-  private def checkBoxMenu(content: String, value: Boolean, itemListener: ItemListener): MenuItem = {
-    val menuItem = new CheckboxMenuItem(content)
+  private def checkBoxMenu(key: MenuItemKey, value: Boolean, itemListener: ItemListener)
+                          (using lookup: ResourceLookup): MenuItem = {
+    val menuItem = new CheckboxMenuItem(lookup(key))
     menuItem.setState(value)
     menuItem.addItemListener(itemListener)
     menuItem
   }
 
+  private def fileMenu(using EventHandler, ResourceLookup): Menu =
+    localizedMenu(MenuKey.File, List(
+      menuItem(MenuItemKey.Open),
+      menuItem(MenuItemKey.Info)))
+
+  private def modeMenu(mode: Mode)(using EventHandler, ResourceLookup): Menu =
+    localizedMenu(MenuKey.Mode, modeMenuItems(mode))
+
+  private def sizeMenu(using EventHandler, ResourceLookup): Menu =
+    localizedMenu(MenuKey.Size, menuItemsForEnumeratedMenu(Size.values.toList,(handler, tag) => handler.changeSize(tag)))
+
+  private def optionsMenu(using handler:EventHandler, lookup:ResourceLookup): Menu =
+    localizedMenu(MenuKey.Options, List(
+      checkBoxMenu(MenuItemKey.RightToLeft, false, (e: ItemEvent) => handler.directionChange(e.getStateChange)),
+      checkBoxMenu(MenuItemKey.PageNumbers, true, (e: ItemEvent) => handler.togglePageNumbers(e.getStateChange))))
+  
   private def screenSize: Dimensions = {
     val ge = GraphicsEnvironment.getLocalGraphicsEnvironment
     val usableBounds: Rectangle = ge.getMaximumWindowBounds
     val width = usableBounds.getWidth.toInt
     val height = usableBounds.getHeight.toInt
     val depth = ge.getDefaultScreenDevice.getDisplayMode.getBitDepth
-    (width, height,depth)
+    (width, height, depth, 0)
   }
 
-  private def setupDesktop(handler: EventHandler, lookup:ResourceLookup):Unit = {
+  private def setupDesktop(using handler: EventHandler, lookup:ResourceLookup):Unit = {
     if (Desktop.isDesktopSupported) {
       val desktop = Desktop.getDesktop
       val iconPath = "/icon_128x128.png"

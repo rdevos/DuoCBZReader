@@ -16,11 +16,12 @@
 
 package be.afront.reader
 
-import EventHandler.{SENSITIVITY, WHEEL_SENSITIVITY, handle, fillModeMenu, open, openSelectedFiles}
+import EventHandler.{SENSITIVITY, WHEEL_SENSITIVITY, handle, modeMenuItems, open, openSelectedFiles}
 import CBZImages.Direction.{LeftToRight, RightToLeft}
 import ReaderState.{MenuItemSource, Mode, Size}
 import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single}
 import CBZImages.{Dimensions, Direction, FileCheck, checkFile}
+import ResourceLookup.MenuItemKey
 
 import java.awt.desktop.{OpenFilesEvent, OpenFilesHandler}
 import java.awt.{FileDialog, Frame, Menu, MenuItem, Point}
@@ -35,7 +36,7 @@ import scala.util.{Failure, Success, Try}
 
 
 class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
-                   initialState:ReaderState, screenSize:Dimensions, lookup:ResourceLookup)
+                   initialState:ReaderState, screenSize:Dimensions)(using lookup:ResourceLookup)
   extends KeyListener
     with MouseMotionListener
     with MouseWheelListener
@@ -99,7 +100,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     val menuBar = frame.getMenuBar
     val menu = menuBar.getMenu(1)
     menu.removeAll()
-    fillModeMenu(newMode, menu, this, lookup);
+    modeMenuItems(newMode)(using this, lookup).foreach(menu.add)
   }
 
   private def updateStateForNewFiles(tuple:(files: List[CBZImages],mode: Mode,state: ReaderState)):Unit = {
@@ -199,9 +200,9 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
 
   override def actionPerformed(event: ActionEvent): Unit = {
     event.getActionCommand match {
-      case "Open" => 
+      case MenuItemKey.Open.description => 
         updateStateForNewFiles(open(state.size, state.direction, state.showPageNumbers))
-      case "Info" =>
+      case MenuItemKey.Info.description =>
         displayMetadata()
 
       case _ => println("unimplemented command "+ event.getActionCommand)
@@ -316,19 +317,18 @@ object EventHandler {
     }
   }
 
-  def addMenuItemsForEnumeratedMenu[K <: MenuItemSource](menu: Menu, itemValues:List[K],
-      handler: EventHandler,
-      lookup:ResourceLookup,
-      action:(EventHandler, K)=>Unit): Unit = {
+  def menuItemsForEnumeratedMenu[K <: MenuItemSource]
+      (itemValues:List[K], action:(EventHandler, K)=>Unit)
+      (using handler:EventHandler, lookup:ResourceLookup): List[MenuItem] = {
     val items = itemValues.filter(_.selectable).map(q => new EnumeratedMenuItem(q, lookup(q)))
     items.head.setEnabled(false)
     val listener = new EnumeratedValueChangeListener(handler, action)
     items.foreach(item => item.addActionListener(listener))
-    items.foreach(menu.add)
+    items
   }
   
-  def fillModeMenu(currentMode:Mode, modeMenu:Menu, handler: EventHandler, lookup:ResourceLookup):Unit =
+  def modeMenuItems(currentMode:Mode)(using EventHandler, ResourceLookup):List[MenuItem] =
     if (currentMode == Dual2)
-      addMenuItemsForEnumeratedMenu[Mode](modeMenu, Mode.values.toList, handler, lookup,
-        (handler, tag) => handler.changeMode(tag))
+      menuItemsForEnumeratedMenu[Mode](Mode.values.toList, (handler, tag) => handler.changeMode(tag))
+    else List()  
 }
