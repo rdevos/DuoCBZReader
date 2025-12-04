@@ -32,7 +32,7 @@ object DuoCBZReader {
 
   def main(args: Array[String]): Unit = {
 
-    val availableScreenSize: (width: Int, height: Int) = screenSize
+    val availableScreenSize: (width: Int, height: Int, depth:Int) = screenSize
     val lookup = ResourceLookup(Locale.getDefault)
     
     val frame = new JFrame(lookup(Label.Application))
@@ -69,6 +69,9 @@ object DuoCBZReader {
     val openItem = new MenuItem(lookup(MenuItemKey.Open))
     openItem.addActionListener(handler)
     fileMenu.add(openItem)
+    val infoItem = new MenuItem(lookup(MenuItemKey.Info))
+    infoItem.addActionListener(handler)
+    fileMenu.add(infoItem)
     fileMenu
   }
   
@@ -107,7 +110,8 @@ object DuoCBZReader {
     val usableBounds: Rectangle = ge.getMaximumWindowBounds
     val width = usableBounds.getWidth.toInt
     val height = usableBounds.getHeight.toInt
-    (width, height)
+    val depth = ge.getDefaultScreenDevice.getDisplayMode.getBitDepth
+    (width, height,depth)
   }
 
   private def setupDesktop(handler: EventHandler, lookup:ResourceLookup):Unit = {

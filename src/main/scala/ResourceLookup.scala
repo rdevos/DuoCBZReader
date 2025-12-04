@@ -42,6 +42,7 @@ object ResourceLookup {
 
   enum MenuItemKey(val description: String) extends ResourceKey {
     case Open extends MenuItemKey("MENU_ITEM_Open")
+    case Info extends MenuItemKey("MENU_ITEM_Info")
     case RightToLeft extends MenuItemKey("MENU_ITEM_Right_To_Left")
     case PageNumbers extends MenuItemKey("MENU_ITEM_Page_Numbers")
   }

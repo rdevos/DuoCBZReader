@@ -201,8 +201,20 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     event.getActionCommand match {
       case "Open" => 
         updateStateForNewFiles(open(state.size, state.direction, state.showPageNumbers))
+      case "Info" =>
+        displayMetadata()
+
       case _ => println("unimplemented command "+ event.getActionCommand)
     }
+  }
+
+  def displayMetadata(): Unit = {
+    val dummyOwner = new Frame()
+    dummyOwner.setVisible(false)
+    val dialog = new InfoDialog(dummyOwner, state.state1.metadata)
+    dialog.setLocationRelativeTo(null)
+    dialog.setVisible(true)
+    dummyOwner.dispose()
   }
 
   def directionChange(newState:Int):Unit =

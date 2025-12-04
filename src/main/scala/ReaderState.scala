@@ -67,6 +67,9 @@ case class PartialState(
   
   override def close(): Unit =
     images.close()
+    
+  def metadata:String =
+    images.metadata  
 }
 
 object PartialState {

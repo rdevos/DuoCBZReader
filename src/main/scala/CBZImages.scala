@@ -24,10 +24,12 @@ import org.apache.commons.compress.archivers.zip.{ZipArchiveEntry, ZipFile}
 
 import java.awt.Graphics2D
 import java.io.File
-import javax.imageio.{ImageIO, ImageReader}
+import javax.imageio.stream.ImageInputStream
+import javax.imageio.{ImageIO, ImageReader, ImageTypeSpecifier}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 import scala.util.{Try, Using}
+
 
 class CBZImages(file: File) extends AutoCloseable {
 
@@ -56,7 +58,6 @@ class CBZImages(file: File) extends AutoCloseable {
       entry <- rootEntries
       d <- getDimensions(zipFile, entry)
     } yield entry.getName -> d).toMap
-
 
   private val wideIndices: Set[ImageIndex] = entries.indices
     .filter(i => dimensions.get(entries(i)).exists(d => d.width > d.height))
@@ -105,6 +106,14 @@ class CBZImages(file: File) extends AutoCloseable {
     zipFile.close()
   }
 
+  def metadata:String = {
+    entries.map(entry => {
+      val dim:Dimensions = dimensions(entry)
+      s"$entry: $dim"
+    }).mkString("\n")
+  }
+
+
   private def isImageEntry(name: String): Boolean = {
     val lower = name.toLowerCase
     (lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") || lower.endsWith(".gif")) &&
@@ -114,7 +123,7 @@ class CBZImages(file: File) extends AutoCloseable {
 
 object CBZImages {
 
-  type Dimensions = (width: Int, height: Int)
+  type Dimensions = (width: Int, height: Int, depth:Int)
 
   type FileCheck = (file: File, image: Try[CBZImages])
 
@@ -152,29 +161,28 @@ object CBZImages {
     }
   }
 
+  def checkFile(file: File): FileCheck =
+    (file, Try(new CBZImages(file)))
+
   given imageReaderReleasable: Using.Releasable[ImageReader] with
     def release(r: ImageReader): Unit =
       r.dispose()
 
-  import java.util.Iterator as JavaIterator
-  extension [A](it: JavaIterator[A])
-    def headOption: Option[A] =
-      if (it.hasNext) Some(it.next()) else None
-
-  def getDimensions(zipFile: ZipFile, entry: ZipArchiveEntry): Option[Dimensions] =
+  private def getDimensions(zipFile: ZipFile, entry: ZipArchiveEntry): Option[Dimensions] =
     Using.Manager { use =>
       val in = use(zipFile.getInputStream(entry))
       val iis = use(ImageIO.createImageInputStream(in))
-      val readers = ImageIO.getImageReaders(iis)
-
-      readers.headOption.map { reader =>
-        val r = use(reader)
-        r.setInput(iis)
-        (width = r.getWidth(0), height = r.getHeight(0))
-      }
+      val readers = ImageIO.getImageReaders(iis).asScala.to(LazyList)
+      readers.flatMap { reader => tryReadDimensions(use, reader, iis) }.headOption
     }.toOption.flatten
 
+  private def tryReadDimensions(use:Using.Manager, reader:ImageReader, input:ImageInputStream):Option[Dimensions] =
+    Try {
+      reader.setInput(input)
+      val r = use(reader)
+      (width = r.getWidth(0), height = r.getHeight(0), depth = totalBitDepth(r.getRawImageType(0)))
+    }.toOption
 
-  def checkFile(file:File):FileCheck =
-    (file, Try(new CBZImages(file)))  
+  private def totalBitDepth(specifier: ImageTypeSpecifier): Int =
+    (0 until specifier.getNumBands).map(specifier.getBitsPerBand).sum
 }
