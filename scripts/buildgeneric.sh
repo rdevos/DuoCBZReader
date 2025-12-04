@@ -1,6 +1,6 @@
 #!/bin/bash
 
-./buildcommon
+./buildcommon.sh
 
 rm -rf output
 

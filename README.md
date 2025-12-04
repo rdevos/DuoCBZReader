@@ -20,7 +20,7 @@ or
 
 ## to build a standalone app for macos
 
-cd to scripts and run jlink.sh
+cd to scripts and run buildmacos.sh
 
 
 # Menus
