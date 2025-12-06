@@ -87,7 +87,7 @@ case class ReaderState(
    vs: Double,
    size: Size,
    direction:Direction,
-   encoding: Encoding,                   
+   encoding: Encoding,
    showPageNumbers:Boolean                   
 ) extends AutoCloseable {
   
@@ -185,18 +185,15 @@ case class ReaderState(
 
   def setShowPageNumbers(show:Boolean):ReaderState =
     copy(showPageNumbers = show)
-  
 
   def setMode(newMode:Mode):ReaderState =
     copy(mode = newMode)
-  
 
   def setSize(newSize: Size): ReaderState =
-    copy(size = newSize)
-  
+    copy(size = newSize, zoomLevel = 0)
+
   def setEncoding(newEncoding: Encoding): ReaderState =
     copy(encoding = newEncoding)
-  
 
   override def close(): Unit = {
     state1.close()
@@ -221,10 +218,11 @@ object ReaderState {
   enum Size(val description:String) extends MenuItemSource {
     case Image extends Size("MENU_ITEM_Fit_image")
     case Width extends Size("MENU_ITEM_Fit_width")
-
+    case Actual extends Size("MENU_ITEM_Actual")
+    
     def selectable:Boolean = true
   }
-  
+
   enum Encoding(val description:String, val charset:Charset) extends MenuItemSource {
     case DEFAULT extends Encoding("MENU_ITEM_ENCODING_Default", null)
     case LATIN1 extends Encoding("MENU_ITEM_ENCODING_Latin1", StandardCharsets.ISO_8859_1)
