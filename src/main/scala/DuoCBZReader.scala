@@ -79,11 +79,11 @@ object DuoCBZReader {
     item.addActionListener(handler)
     item
 
-  private def checkBoxMenu(key: MenuItemKey, value: Boolean, itemListener: ItemListener)
-                          (using lookup: ResourceLookup): MenuItem = {
+  private def checkBoxMenu(key: MenuItemKey, value: Boolean, action: (EventHandler,Int) => Unit)
+                          (using handler:EventHandler, lookup: ResourceLookup): MenuItem = {
     val menuItem = new CheckboxMenuItem(lookup(key))
     menuItem.setState(value)
-    menuItem.addItemListener(itemListener)
+    menuItem.addItemListener((e: ItemEvent) => action(handler, e.getStateChange))
     menuItem
   }
 
@@ -100,12 +100,12 @@ object DuoCBZReader {
 
   private def optionsMenu(using handler:EventHandler, lookup:ResourceLookup): Menu =
     localizedMenu(MenuKey.Options, List(
-      checkBoxMenu(MenuItemKey.RightToLeft, false, (e: ItemEvent) => handler.directionChange(e.getStateChange)),
-      checkBoxMenu(MenuItemKey.PageNumbers, true, (e: ItemEvent) => handler.togglePageNumbers(e.getStateChange))))
+      checkBoxMenu(MenuItemKey.RightToLeft, false, (a,b) => a.directionChange(b)),
+      checkBoxMenu(MenuItemKey.PageNumbers, true, (a,b) => a.togglePageNumbers(b))))
 
   private def encodingMenu(using EventHandler, ResourceLookup): Menu =
     localizedMenu(MenuKey.Encoding, menuItemsForEnumeratedMenu(Encoding.values.toList, (handler, tag) => handler.changeEncoding(tag)))
-  
+
   private def screenSize: Dimensions = {
     val ge = GraphicsEnvironment.getLocalGraphicsEnvironment
     val usableBounds: Rectangle = ge.getMaximumWindowBounds

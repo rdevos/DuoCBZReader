@@ -56,11 +56,14 @@ class ImagePanel(initialState: ReaderState, column:Int) extends JPanel {
       val scaledWidth = (imgWidth * scale).toInt
       val scaledHeight = (imgHeight * scale).toInt
 
+      val allowHScroll = scaledWidth > panelWidth
+      val allowVScroll = scaledHeight > panelHeight
+
       val deltaX = panelWidth.toDouble - scaledWidth
       val deltaY = panelHeight.toDouble - scaledHeight
-      
-      val x = (state.hs * deltaX).toInt
-      val y = (state.vs * deltaY).toInt
+
+      val x = if (allowHScroll) (state.hs * deltaX).toInt else 0
+      val y = if (allowVScroll) (state.vs * deltaY).toInt else 0
 
       g2d.drawImage(img, x, y, scaledWidth, scaledHeight, this)
 

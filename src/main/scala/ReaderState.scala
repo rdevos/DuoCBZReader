@@ -133,14 +133,11 @@ case class ReaderState(
     if(partialStates.size<2) this else
       withNewPartialStates(partialStates.head, _.nextPage, false)
 
-  def conditionalScroll(scrolled: => ReaderState):ReaderState =
-    if(zoomLevel>0) scrolled else this
-
   private def horizontalScroll(delta: Double): ReaderState =
-    conditionalScroll(copy(hs = checkScroll(hs + delta)))
+    copy(hs = checkScroll(hs + delta))
 
   private def verticalScroll(delta: Double): ReaderState =
-    conditionalScroll(copy(vs = checkScroll(vs + delta)))
+    copy(vs = checkScroll(vs + delta))
 
   def scrollLeft: ReaderState =
     horizontalScroll(-SCROLL_STEP)
