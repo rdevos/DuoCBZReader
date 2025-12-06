@@ -13,5 +13,5 @@ else
 fi
 
 jlink --module-path $JAVA_HOME/jmods \
-      --add-modules java.base,java.desktop,java.logging,jdk.unsupported  \
+      --add-modules java.base,java.desktop,jdk.charsets,java.logging,jdk.unsupported  \
       --output custom-jre $COMPRESS
