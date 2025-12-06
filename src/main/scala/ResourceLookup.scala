@@ -38,6 +38,7 @@ object ResourceLookup {
     case Mode extends MenuKey("MENU_Mode")
     case Size extends MenuKey("MENU_Size")
     case Options extends MenuKey("MENU_Options")
+    case Encoding extends MenuKey("MENU_Encoding")
   }
 
   enum MenuItemKey(val description: String) extends ResourceKey {

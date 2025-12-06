@@ -19,6 +19,8 @@ package be.afront.reader
 import CBZImages.{Dimensions, Direction, Part, getDimensions}
 import CBZImages.Part.{First, Latter}
 
+import ReaderState.Encoding
+
 import java.awt.image.BufferedImage
 import org.apache.commons.compress.archivers.zip.{ZipArchiveEntry, ZipFile}
 
@@ -31,12 +33,15 @@ import scala.jdk.CollectionConverters.*
 import scala.util.{Try, Using}
 
 
-class CBZImages(file: File) extends AutoCloseable {
+class CBZImages(file: File, encoding: Encoding) extends AutoCloseable {
+
+  extension [B](builder: B)
+    def setIfNonNull[T](value: T)(setter: (B, T) => B): B =
+      if (value != null) setter(builder, value) else builder
 
   private val zipFile: ZipFile = ZipFile.builder()
     .setFile(file)
-    // this might take a bit of figuring out, because you may want to have different default encodings for primary and main files
-    //.setCharset("CP932")
+    .setIfNonNull(encoding.charset)((b,d)=> b.setCharset(d))
     .get()
   
   private val rootEntries: List[ZipArchiveEntry] = {
@@ -115,7 +120,6 @@ class CBZImages(file: File) extends AutoCloseable {
     }).mkString("\n")
   }
 
-
   private def isImageEntry(name: String): Boolean = {
     val lower = name.toLowerCase
     (lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") || lower.endsWith(".gif")) &&
@@ -163,8 +167,8 @@ object CBZImages {
     }
   }
 
-  def checkFile(file: File): FileCheck =
-    (file, Try(new CBZImages(file)))
+  def checkFile(file: File, encoding:Encoding): FileCheck =
+    (file, Try(new CBZImages(file, encoding)))
 
   given imageReaderReleasable: Using.Releasable[ImageReader] with
     def release(r: ImageReader): Unit =

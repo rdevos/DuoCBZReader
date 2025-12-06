@@ -18,9 +18,9 @@ package be.afront.reader
 
 import EventHandler.{SENSITIVITY, WHEEL_SENSITIVITY, handle, modeMenuItems, open, openSelectedFiles}
 import CBZImages.Direction.{LeftToRight, RightToLeft}
-import ReaderState.{MenuItemSource, Mode, Size}
+import ReaderState.{Encoding, MenuItemSource, Mode, Size}
 import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single}
-import CBZImages.{Dimensions, Direction, FileCheck, checkFile}
+import CBZImages.{Dimensions, FileCheck, checkFile}
 import ResourceLookup.MenuItemKey
 
 import java.awt.desktop.{OpenFilesEvent, OpenFilesHandler}
@@ -201,7 +201,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   override def actionPerformed(event: ActionEvent): Unit = {
     event.getActionCommand match {
       case MenuItemKey.Open.description => 
-        updateStateForNewFiles(open(state.size, state.direction, state.showPageNumbers))
+        updateStateForNewFiles(open(state))
       case MenuItemKey.Info.description =>
         displayMetadata()
 
@@ -230,6 +230,9 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   def changeSize(newSize:Size):Unit =
     updateState(state.setSize(newSize))
 
+  def changeEncoding(newEncoding: Encoding): Unit =
+    updateState(state.setEncoding(newEncoding))
+
   override def mouseWheelMoved(e: MouseWheelEvent): Unit =
     updateState(state.scrollVertical(e.getWheelRotation * WHEEL_SENSITIVITY))
 
@@ -237,13 +240,13 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   def openFiles(e: OpenFilesEvent): Unit = {
     val paths = e.getFiles.asScala.toList
     if (paths.nonEmpty) {
-      val images = paths.take(2).map(checkFile).flatMap((checkResult:FileCheck) => checkResult match {
+      val images = paths.take(2).map(p => checkFile(p, state.encoding)).flatMap((checkResult:FileCheck) => checkResult match {
         case (file, Failure(err)) => {
           handle(file, err);None
         }
         case (file, Success(image)) => Some(image)
       })
-      updateStateForNewFiles(openSelectedFiles(state.size, state.direction, state.showPageNumbers, images))
+      updateStateForNewFiles(openSelectedFiles(state, images))
     }
   }
 }
@@ -254,7 +257,7 @@ object EventHandler {
   val WHEEL_SENSITIVITY = 0.01
 
 
-  def selectFile(prompt: String): Option[FileCheck] = {
+  def selectFile(prompt: String, encoding:Encoding): Option[FileCheck] = {
     val dummyFrame = new Frame()
     dummyFrame.setSize(0, 0)
 
@@ -265,13 +268,13 @@ object EventHandler {
     dialog.dispose()
     dummyFrame.dispose()
 
-    if(files.isEmpty) None else Some(checkFile(files(0)))
+    if(files.isEmpty) None else Some(checkFile(files(0), encoding))
   }
 
   @annotation.tailrec
-  def selectFileLoop(prompt:String): Option[CBZImages] = {
-    selectFile(prompt) match {
-      case Some((file, Failure(err))) => { handle(file, err); selectFileLoop(prompt) }
+  def selectFileLoop(prompt:String, encoding:Encoding): Option[CBZImages] = {
+    selectFile(prompt, encoding) match {
+      case Some((file, Failure(err))) => { handle(file, err); selectFileLoop(prompt, encoding) }
       case Some((file, Success(image))) => Some(image)
       case None => None
     }
@@ -287,18 +290,18 @@ object EventHandler {
     dummyOwner.dispose()
   }
 
-  def open(size:Size, direction:Direction, showPageNumbers:Boolean): (files: List[CBZImages],mode: Mode,state: ReaderState) = {
-    openSelectedFiles(size, direction, showPageNumbers,
-      List(selectFileLoop("select first file"), selectFileLoop("select 2nd file")).flatten)
+  def open(state:ReaderState): (files: List[CBZImages],mode: Mode,state: ReaderState) = {
+    openSelectedFiles(state,
+      List(selectFileLoop("select first file", state.encoding), selectFileLoop("select 2nd file", state.encoding)).flatten)
   }
 
-  def openSelectedFiles(size:Size, direction:Direction, showPageNumbers:Boolean, files:List[CBZImages]) : (files: List[CBZImages],mode: Mode,state: ReaderState) = {
+  def openSelectedFiles(currentState:ReaderState, files:List[CBZImages]) : (files: List[CBZImages],mode: Mode,state: ReaderState) = {
     val mode = if (files.size == 2) Dual2 else if (files.size == 1) Single else Blank
 
     val state = mode match {
-      case Dual2 => ReaderState(mode, files(0), files(1), size, direction, showPageNumbers)
-      case Single => ReaderState(mode, files(0), null, size, direction, showPageNumbers)
-      case _ => ReaderState(mode, null, null, size, direction, showPageNumbers)
+      case Dual2 => new ReaderState(mode, files(0), files(1), currentState)
+      case Single => new ReaderState(mode, files(0), null, currentState)
+      case _ => new ReaderState(mode, null, null, currentState)
     }
     (files,mode,state)
   }

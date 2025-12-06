@@ -16,15 +16,15 @@
 
 package be.afront.reader
 
-import ReaderState.{Mode, SCROLL_STEP, Size, ZOOM_STEP}
+import ReaderState.{Encoding, Mode, SCROLL_STEP, Size, ZOOM_STEP}
 import CBZImages.Direction
 import CBZImages.Direction.LeftToRight
-
 import PartialState.fromImage
 import ReaderState.Mode.{Blank, Dual1, Dual1b, Single}
 import ReaderState.Size.Image
 
 import java.awt.image.BufferedImage
+import java.nio.charset.{Charset, StandardCharsets}
 import scala.math.pow
 
 type PageSkip = (state:PartialState, success:Boolean)
@@ -86,15 +86,19 @@ case class ReaderState(
    hs: Double,
    vs: Double,
    size: Size,
-   direction:Direction,   
+   direction:Direction,
+   encoding: Encoding,                   
    showPageNumbers:Boolean                   
 ) extends AutoCloseable {
   
   private def checkScroll(pos: Double): Double =
     math.max(0.0, math.min(1.0, pos))
 
-  def this(mode:Mode, images1: CBZImages, images2: CBZImages, size:Size, direction:Direction, showPageNumbers:Boolean) =
-    this(mode, fromImage(images1), fromImage(images2), 0, 0.5, 0.5, size, direction, showPageNumbers)
+  def this(mode:Mode, images1: CBZImages, images2: CBZImages, size:Size, direction:Direction, encoding:Encoding, showPageNumbers:Boolean) =
+    this(mode, fromImage(images1), fromImage(images2), 0, 0.5, 0.5, size, direction, encoding,  showPageNumbers)
+
+  def this(mode: Mode, images1: CBZImages, images2: CBZImages, currentState:ReaderState) =
+    this(mode, images1, images2, currentState.size, currentState.direction, currentState.encoding, currentState.showPageNumbers)
 
   def zoomFactor:Double = pow(ZOOM_STEP, zoomLevel)
 
@@ -179,17 +183,20 @@ case class ReaderState(
     copy(direction = dir)
   }
 
-  def setShowPageNumbers(show:Boolean):ReaderState = {
+  def setShowPageNumbers(show:Boolean):ReaderState =
     copy(showPageNumbers = show)
-  }
+  
 
-  def setMode(newMode:Mode):ReaderState = {
+  def setMode(newMode:Mode):ReaderState =
     copy(mode = newMode)
-  }
+  
 
-  def setSize(newSize: Size): ReaderState = {
+  def setSize(newSize: Size): ReaderState =
     copy(size = newSize)
-  }
+  
+  def setEncoding(newEncoding: Encoding): ReaderState =
+    copy(encoding = newEncoding)
+  
 
   override def close(): Unit = {
     state1.close()
@@ -217,13 +224,21 @@ object ReaderState {
 
     def selectable:Boolean = true
   }
+  
+  enum Encoding(val description:String, val charset:Charset) extends MenuItemSource {
+    case DEFAULT extends Encoding("MENU_ITEM_ENCODING_Default", null)
+    case LATIN1 extends Encoding("MENU_ITEM_ENCODING_Latin1", StandardCharsets.ISO_8859_1)
+    case CP932 extends Encoding("MENU_ITEM_ENCODING_CP932", Charset.forName("CP932"))
+
+    def selectable: Boolean = true
+  }
 
   def SCROLL_STEP = 0.125
   
   def ZOOM_STEP = 1.2
 
-  def INITIAL_STATE = new ReaderState(Mode.Blank, null, null, Image, LeftToRight, true);
+  def INITIAL_STATE = new ReaderState(Mode.Blank, null, null, Image, LeftToRight, Encoding.DEFAULT, true);
 
-  def apply(mode:Mode, file1:CBZImages, file2:CBZImages, size:Size, direction:Direction, showPageNumbers:Boolean): ReaderState =
-    new ReaderState(mode,file1,file2,size, direction, showPageNumbers)
+  def apply(mode:Mode, file1:CBZImages, file2:CBZImages, size:Size, direction:Direction, encoding:Encoding, showPageNumbers:Boolean): ReaderState =
+    new ReaderState(mode,file1,file2,size, direction, encoding, showPageNumbers)
 }
