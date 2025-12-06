@@ -89,7 +89,8 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     }
     state = newState
     panel1.setNewState(newState)
-    if (newState.state2 != null) panel2.setNewState(newState)
+    if (newState.partialStates.size == 2)
+      panel2.setNewState(newState)
 
     SwingUtilities.invokeLater { () =>
       frame.repaint()
@@ -103,8 +104,8 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     modeMenuItems(newMode)(using this, lookup).foreach(menu.add)
   }
 
-  private def updateStateForNewFiles(tuple:(files: List[CBZImages],mode: Mode,state: ReaderState)):Unit = {
-    updateState(tuple.state, true)
+  private def updateStateForNewFiles(state: ReaderState):Unit = {
+    updateState(state, true)
   }
 
   private def layoutChangeFor(newState:ReaderState): Unit = {
@@ -212,7 +213,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   def displayMetadata(): Unit = {
     val dummyOwner = new Frame()
     dummyOwner.setVisible(false)
-    val dialog = new InfoDialog(dummyOwner, state.state1.metadata)
+    val dialog = new InfoDialog(dummyOwner, state.partialStates.map(_.metadata).mkString("\n\n"))
     dialog.setLocationRelativeTo(null)
     dialog.setVisible(true)
     dummyOwner.dispose()
@@ -290,21 +291,12 @@ object EventHandler {
     dummyOwner.dispose()
   }
 
-  def open(state:ReaderState): (files: List[CBZImages],mode: Mode,state: ReaderState) = {
+  def open(state:ReaderState): ReaderState =
     openSelectedFiles(state,
       List(selectFileLoop("select first file", state.encoding), selectFileLoop("select 2nd file", state.encoding)).flatten)
-  }
 
-  def openSelectedFiles(currentState:ReaderState, files:List[CBZImages]) : (files: List[CBZImages],mode: Mode,state: ReaderState) = {
-    val mode = if (files.size == 2) Dual2 else if (files.size == 1) Single else Blank
-
-    val state = mode match {
-      case Dual2 => new ReaderState(mode, files(0), files(1), currentState)
-      case Single => new ReaderState(mode, files(0), null, currentState)
-      case _ => new ReaderState(mode, null, null, currentState)
-    }
-    (files,mode,state)
-  }
+  def openSelectedFiles(currentState:ReaderState, files:List[CBZImages]) : ReaderState =
+    new ReaderState(files, currentState)
 
   private class EnumeratedValueChangeListener[K <: MenuItemSource](handler: EventHandler, action:(EventHandler, K)=>Unit) extends ActionListener {
 

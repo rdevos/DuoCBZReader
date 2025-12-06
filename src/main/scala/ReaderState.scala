@@ -16,11 +16,10 @@
 
 package be.afront.reader
 
-import ReaderState.{Encoding, Mode, SCROLL_STEP, Size, ZOOM_STEP}
+import ReaderState.{Encoding, Mode, SCROLL_STEP, Size, ZOOM_STEP, modeFrom}
 import CBZImages.Direction
 import CBZImages.Direction.LeftToRight
-import PartialState.fromImage
-import ReaderState.Mode.{Blank, Dual1, Dual1b, Single}
+import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single}
 import ReaderState.Size.Image
 
 import java.awt.image.BufferedImage
@@ -74,14 +73,13 @@ case class PartialState(
 
 object PartialState {
 
-  def fromImage(images: CBZImages):PartialState =
-    if(images == null) null else new PartialState(images)
+  def apply(images: CBZImages):PartialState =
+    new PartialState(images)
 }
 
 case class ReaderState(
    mode: Mode,
-   state1: PartialState,
-   state2: PartialState,
+   partialStates: List[PartialState],
    zoomLevel: Int,
    hs: Double,
    vs: Double,
@@ -90,15 +88,15 @@ case class ReaderState(
    encoding: Encoding,
    showPageNumbers:Boolean                   
 ) extends AutoCloseable {
-  
+
   private def checkScroll(pos: Double): Double =
     math.max(0.0, math.min(1.0, pos))
 
-  def this(mode:Mode, images1: CBZImages, images2: CBZImages, size:Size, direction:Direction, encoding:Encoding, showPageNumbers:Boolean) =
-    this(mode, fromImage(images1), fromImage(images2), 0, 0.5, 0.5, size, direction, encoding,  showPageNumbers)
+  def this(cbzImages: List[CBZImages], size:Size, direction:Direction, encoding:Encoding, showPageNumbers:Boolean) =
+    this(modeFrom(cbzImages.size),  cbzImages.map(m => PartialState(m)), 0, 0.5, 0.5, size, direction, encoding,  showPageNumbers)
 
-  def this(mode: Mode, images1: CBZImages, images2: CBZImages, currentState:ReaderState) =
-    this(mode, images1, images2, currentState.size, currentState.direction, currentState.encoding, currentState.showPageNumbers)
+  def this(cbzImages: List[CBZImages], currentState:ReaderState) =
+    this(cbzImages, currentState.size, currentState.direction, currentState.encoding, currentState.showPageNumbers)
 
   def zoomFactor:Double = pow(ZOOM_STEP, zoomLevel)
 
@@ -108,30 +106,32 @@ case class ReaderState(
   def left:ReaderState =
     if(direction == LeftToRight) prevPage else nextPage
 
-  def safe2(f: PartialState=>PartialState): PartialState =
-    if(state2==null) null else f(state2)
+  def withNewPartialStates(main: PartialState, f: PartialState => PageSkip, adjust: Boolean): ReaderState =
+    val newPartialStates = main :: partialStates.tail.map(f(_).state)
+    if (adjust) copy(partialStates = newPartialStates, hs = 0.5, vs = 0.0) else
+      copy(partialStates = newPartialStates)
 
-  def nextPage: ReaderState = {
-    val newState1 = state1.nextPage
-    if(!newState1.success) this else
-      copy(state1 = newState1.state, state2 = safe2(_.nextPage.state), hs = 0.5, vs = 0.0)
-  }
+  def nextPage: ReaderState =
+    val newState1 = partialStates.head.nextPage
+    if(!newState1.success) this else withNewPartialStates(newState1.state, _.nextPage, true)
 
-  def prevPage: ReaderState = {
-    val newState1 = state1.prevPage
-    if(!newState1.success) this else
-      copy(state1 = newState1.state, state2 = safe2(_.prevPage.state), hs = 0.5, vs = 0.0)
-  }
+  def prevPage: ReaderState =
+    val newState1 = partialStates.head.prevPage
+    if(!newState1.success) this else withNewPartialStates(newState1.state, _.prevPage, true)
 
-  def zoomIn: ReaderState = copy(zoomLevel =
-    zoomLevel + 1)
+  def zoomIn: ReaderState =
+    copy(zoomLevel = zoomLevel + 1)
 
-  def zoomOut: ReaderState = copy(zoomLevel =
-    zoomLevel - 1)
+  def zoomOut: ReaderState =
+    copy(zoomLevel = zoomLevel - 1)
 
-  def minus: ReaderState = copy(state2 = safe2(_.prevPage.state))
+  def minus: ReaderState =
+    if(partialStates.size<2) this else
+      withNewPartialStates(partialStates.head, _.prevPage, false)
 
-  def plus: ReaderState = copy(state2 = safe2(_.nextPage.state))
+  def plus: ReaderState =
+    if(partialStates.size<2) this else
+      withNewPartialStates(partialStates.head, _.nextPage, false)
 
   def conditionalScroll(scrolled: => ReaderState):ReaderState =
     if(zoomLevel>0) scrolled else this
@@ -164,22 +164,21 @@ case class ReaderState(
 
     val state = mode match {
       case Blank => None
-      case Dual1 | Single => Option(state1)
-      case Dual1b => Option(state2)
+      case Dual1 | Single => Option(partialStates.head)
+      case Dual1b => Option(partialStates(1))
       case _ => {
         val signedColumn = direction.swapIfNeeded(column)
-        if (signedColumn == 0) Option(state1) else if (signedColumn == 1) Option(state2) else None
+        if (signedColumn == 0) Option(partialStates.head) else if (signedColumn == 1) Option(partialStates(1)) else None
       }
     }
     state.flatMap(_.getCurrentImage(direction))
   }
 
   def getPageIndicator(column:Int):String =
-    (if(column==0) state1 else state2).getPageIndicator
+    (if(column==0) partialStates.head else partialStates(1)).getPageIndicator
 
   def setDirection(dir:Direction): ReaderState = {
-    state1.partiallyClearCache()
-    if(state2 != null) state2.partiallyClearCache()
+    partialStates.foreach(_.partiallyClearCache())
     copy(direction = dir)
   }
 
@@ -195,10 +194,8 @@ case class ReaderState(
   def setEncoding(newEncoding: Encoding): ReaderState =
     copy(encoding = newEncoding)
 
-  override def close(): Unit = {
-    state1.close()
-    if(state2!=null) state2.close()
-  }
+  override def close(): Unit =
+    partialStates.foreach(_.close())
 }
 
 object ReaderState {
@@ -219,7 +216,7 @@ object ReaderState {
     case Image extends Size("MENU_ITEM_Fit_image")
     case Width extends Size("MENU_ITEM_Fit_width")
     case Actual extends Size("MENU_ITEM_Actual")
-    
+
     def selectable:Boolean = true
   }
 
@@ -235,8 +232,11 @@ object ReaderState {
   
   def ZOOM_STEP = 1.2
 
-  def INITIAL_STATE = new ReaderState(Mode.Blank, null, null, Image, LeftToRight, Encoding.DEFAULT, true);
+  def INITIAL_STATE = new ReaderState(List(), Image, LeftToRight, Encoding.DEFAULT, true);
 
-  def apply(mode:Mode, file1:CBZImages, file2:CBZImages, size:Size, direction:Direction, encoding:Encoding, showPageNumbers:Boolean): ReaderState =
-    new ReaderState(mode,file1,file2,size, direction, encoding, showPageNumbers)
+  def apply(files:List[CBZImages], size:Size, direction:Direction, encoding:Encoding, showPageNumbers:Boolean): ReaderState =
+    new ReaderState(files, size, direction, encoding, showPageNumbers)
+
+  def modeFrom(size: Int):Mode =
+    if (size == 2) Dual2 else if (size == 1) Single else Blank
 }

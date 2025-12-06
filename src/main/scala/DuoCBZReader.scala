@@ -105,8 +105,7 @@ object DuoCBZReader {
 
   private def encodingMenu(using EventHandler, ResourceLookup): Menu =
     localizedMenu(MenuKey.Encoding, menuItemsForEnumeratedMenu(Encoding.values.toList, (handler, tag) => handler.changeEncoding(tag)))
-
-
+  
   private def screenSize: Dimensions = {
     val ge = GraphicsEnvironment.getLocalGraphicsEnvironment
     val usableBounds: Rectangle = ge.getMaximumWindowBounds
