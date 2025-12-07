@@ -58,7 +58,7 @@ class CBZImages(file: File, encoding: Encoding) extends AutoCloseable {
 
   type Combo = (rawPage: ImageIndex, part:Option[Part])
   
-  private val entries: List[EntryName] = rootEntries.map(_.getName)
+  val entries: List[EntryName] = rootEntries.map(_.getName)
 
   private val dimensions: Map[EntryName, Dimensions] =
     (for {
