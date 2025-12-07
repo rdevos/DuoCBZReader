@@ -219,6 +219,7 @@ object ReaderState {
 
   enum Encoding(val description:String, val charset:Charset) extends MenuItemSource {
     case DEFAULT extends Encoding("MENU_ITEM_ENCODING_Default", null)
+    case LATIN1 extends Encoding("MENU_ITEM_ENCODING_Latin1", Charset.forName("ISO-8859-1"))
     case CP932 extends Encoding("MENU_ITEM_ENCODING_CP932", Charset.forName("CP932"))
 
     def selectable: Boolean = true

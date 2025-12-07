@@ -2,7 +2,7 @@
 
 ./buildcommon.sh
 
-rm -rf output
+rm -rf ../target/generic
 
 jpackage --name DuoCBZReader \
          --input ../target/scala-3.7.0 \
@@ -10,9 +10,9 @@ jpackage --name DuoCBZReader \
          --main-class be.afront.reader.DuoCBZReader \
          --type app-image \
          --runtime-image custom-jre \
-         --dest output \
+         --dest ../target/generic \
          --copyright "Copyright 2025 Paul Janssens - All rights reserved" \
-         --app-version "1.0.3" \
+         --app-version "1.0.4" \
          --file-associations zip.properties \
          --file-associations cbz.properties \
          --file-associations epub.properties \
