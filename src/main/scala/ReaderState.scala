@@ -19,7 +19,7 @@ package be.afront.reader
 import ReaderState.{Encoding, Mode, SCROLL_STEP, Size, ZOOM_STEP, modeFrom}
 import CBZImages.Direction
 import CBZImages.Direction.LeftToRight
-import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single}
+import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single, SingleEvenOdd, SingleOddEven}
 import ReaderState.Size.Image
 
 import java.awt.image.BufferedImage
@@ -54,12 +54,15 @@ case class PartialState(
   def prevPage: PageSkip =
     pageChange(checkPage(currentPage - 1))
 
-  def getCurrentImage(direction:Direction): Option[BufferedImage] =
-    if (currentPage >= 0 && currentPage < pageCount) {
-      Some(images.getImage(currentPage, direction))
+  def getCurrentImage(direction:Direction, mode:Mode, column:Int): Option[BufferedImage] = {
+    val delta:Int = if(mode == SingleOddEven || mode == SingleEvenOdd) {
+      if (direction == LeftToRight) column else 1-column } else 0
+    if (currentPage+delta >= 0 && currentPage+delta < pageCount) {
+      Some(images.getImage(currentPage+delta, direction))
     } else {
       None
     }
+  }
 
   def partiallyClearCache(): Unit =
     images.partiallyClearCache()  
@@ -161,18 +164,19 @@ case class ReaderState(
 
     val state = mode match {
       case Blank => None
-      case Dual1 | Single => Option(partialStates.head)
+      case Dual1 | Single | SingleEvenOdd | SingleOddEven => Option(partialStates.head)
       case Dual1b => Option(partialStates(1))
       case _ => {
         val signedColumn = direction.swapIfNeeded(column)
         if (signedColumn == 0) Option(partialStates.head) else if (signedColumn == 1) Option(partialStates(1)) else None
       }
     }
-    state.flatMap(_.getCurrentImage(direction))
+    state.flatMap(_.getCurrentImage(direction, mode, column))
   }
 
   def getPageIndicator(column:Int):String =
-    (if(column==0) partialStates.head else partialStates(1)).getPageIndicator
+    (if(column==0 || mode == SingleEvenOdd ||mode == SingleOddEven) partialStates.head else
+      partialStates(1)).getPageIndicator
 
   def setDirection(dir:Direction): ReaderState = {
     partialStates.foreach(_.partiallyClearCache())
@@ -201,12 +205,14 @@ object ReaderState {
     def selectable:Boolean
   }
 
-  enum Mode(val description:String, val selectable:Boolean) extends MenuItemSource {
-    case Blank extends Mode("Blank", false)
-    case Single extends Mode("Single", false)
-    case Dual2 extends Mode("MENU_ITEM_Dual_2_columns", true)
-    case Dual1 extends Mode("MENU_ITEM_Dual_1_column", true)
-    case Dual1b extends Mode("Dual 1 column alt", false)
+  enum Mode(val description:String, val selectable:Boolean, val num:Int) extends MenuItemSource {
+    case Blank extends Mode("Blank", false, 0)
+    case Single extends Mode("MENU_ITEM_Single", true, 1)
+    case SingleOddEven extends Mode("MENU_ITEM_SingleWideOddEven", true, 1)
+    case SingleEvenOdd extends Mode("MENU_ITEM_SingleWideEvenOdd", true, 1)
+    case Dual2 extends Mode("MENU_ITEM_Dual_2_columns", true, 2)
+    case Dual1 extends Mode("MENU_ITEM_Dual_1_column", true, 2)
+    case Dual1b extends Mode("Dual 1 column alt", false, 2)
   }
 
   enum Size(val description:String) extends MenuItemSource {

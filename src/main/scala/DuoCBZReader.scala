@@ -93,7 +93,7 @@ object DuoCBZReader {
       menuItem(MenuItemKey.Info)))
 
   private def modeMenu(mode: Mode)(using EventHandler, ResourceLookup): Menu =
-    localizedMenu(MenuKey.Mode, modeMenuItems(mode))
+    localizedMenu(MenuKey.Mode, modeMenuItems(mode.num))
 
   private def sizeMenu(using EventHandler, ResourceLookup): Menu =
     localizedMenu(MenuKey.Size, menuItemsForEnumeratedMenu(Size.values.toList,(handler, tag) => handler.changeSize(tag)))

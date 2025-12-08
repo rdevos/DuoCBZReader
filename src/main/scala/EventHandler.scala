@@ -19,7 +19,7 @@ package be.afront.reader
 import EventHandler.{SENSITIVITY, WHEEL_SENSITIVITY, handle, modeMenuItems, open, openSelectedFiles}
 import CBZImages.Direction.{LeftToRight, RightToLeft}
 import ReaderState.{Encoding, MenuItemSource, Mode, Size}
-import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single}
+import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single, SingleEvenOdd, SingleOddEven}
 import CBZImages.{Dimensions, FileCheck, checkFile}
 import ResourceLookup.MenuItemKey
 
@@ -85,11 +85,11 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
       frame.revalidate()
     }
     if(afterOpen) {
-      updateMenuBar(newState.mode);
+      updateMenuBar(newState.partialStates.size);
     }
     state = newState
     panel1.setNewState(newState)
-    if (newState.partialStates.size == 2)
+    if (newState.partialStates.size == 2 || newState.mode == SingleEvenOdd || newState.mode == SingleOddEven)
       panel2.setNewState(newState)
 
     SwingUtilities.invokeLater { () =>
@@ -97,11 +97,11 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     }
   }
   
-  private def updateMenuBar(newMode:Mode):Unit = {
+  private def updateMenuBar(count:Int):Unit = {
     val menuBar = frame.getMenuBar
     val menu = menuBar.getMenu(1)
     menu.removeAll()
-    modeMenuItems(newMode)(using this, lookup).foreach(menu.add)
+    modeMenuItems(count)(using this, lookup).foreach(menu.add)
   }
 
   private def updateStateForNewFiles(state: ReaderState):Unit = {
@@ -128,6 +128,8 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     mode match {
       case Blank => List()
       case Single => List(panel1)
+      case SingleOddEven => List(panel1, panel2)
+      case SingleEvenOdd => List(panel1, panel2)
       case Dual1 => List(panel1)
       case Dual1b => List(panel2)
       case Dual2 => List(panel1, panel2)
@@ -316,14 +318,15 @@ object EventHandler {
       (itemValues:List[K], action:(EventHandler, K)=>Unit)
       (using handler:EventHandler, lookup:ResourceLookup): List[MenuItem] = {
     val items = itemValues.filter(_.selectable).map(q => new EnumeratedMenuItem(q, lookup(q)))
-    items.head.setEnabled(false)
+    if(items.nonEmpty)
+      items.head.setEnabled(false)
     val listener = new EnumeratedValueChangeListener(handler, action)
     items.foreach(item => item.addActionListener(listener))
     items
   }
   
-  def modeMenuItems(currentMode:Mode)(using EventHandler, ResourceLookup):List[MenuItem] =
-    if (currentMode == Dual2)
-      menuItemsForEnumeratedMenu[Mode](Mode.values.toList, (handler, tag) => handler.changeMode(tag))
-    else List()  
+  def modeMenuItems(count:Int)(using EventHandler, ResourceLookup):List[MenuItem] =
+    menuItemsForEnumeratedMenu[Mode](
+      Mode.values.toList.filter(item => item.num == count),
+      (handler, tag) => handler.changeMode(tag))
 }
