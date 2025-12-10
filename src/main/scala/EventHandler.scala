@@ -327,6 +327,6 @@ object EventHandler {
   
   def modeMenuItems(count:Int)(using EventHandler, ResourceLookup):List[MenuItem] =
     menuItemsForEnumeratedMenu[Mode](
-      Mode.values.toList.filter(item => item.num == count),
+      Mode.values.toList.filter(item => item.numFiles == count),
       (handler, tag) => handler.changeMode(tag))
 }

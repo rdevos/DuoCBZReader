@@ -22,8 +22,10 @@ import CBZImages.Direction.LeftToRight
 import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single, SingleEvenOdd, SingleOddEven}
 import ReaderState.Size.Image
 
+import PartialState.calcPage
+
 import java.awt.image.BufferedImage
-import java.nio.charset.{Charset, StandardCharsets}
+import java.nio.charset.Charset
 import scala.math.pow
 
 type PageSkip = (state:PartialState, success:Boolean)
@@ -48,22 +50,21 @@ case class PartialState(
   def getPageIndicator:String =
     s"${currentPage+1}/${pageCount}"
 
-  def nextPage: PageSkip =
-    pageChange(checkPage(currentPage + 1))
+  def nextPage(delta:Int): PageSkip =
+    pageChange(checkPage(currentPage + delta))
 
-  def prevPage: PageSkip =
-    pageChange(checkPage(currentPage - 1))
+  def prevPage(delta:Int): PageSkip =
+    pageChange(checkPage(currentPage - delta))
 
   def getCurrentImage(direction:Direction, mode:Mode, column:Int): Option[BufferedImage] = {
-    val delta:Int = if(mode == SingleOddEven || mode == SingleEvenOdd) {
-      if (direction == LeftToRight) column else 1-column } else 0
-    if (currentPage+delta >= 0 && currentPage+delta < pageCount) {
-      Some(images.getImage(currentPage+delta, direction))
+    val actualPage = calcPage(currentPage, column, direction, mode)
+    if (actualPage >= 0 && actualPage < pageCount) {
+      Some(images.getImage(actualPage, direction))
     } else {
       None
     }
   }
-
+  
   def partiallyClearCache(): Unit =
     images.partiallyClearCache()  
   
@@ -78,6 +79,17 @@ object PartialState {
 
   def apply(images: CBZImages):PartialState =
     new PartialState(images)
+
+  def calcPage(page:Int, column:Int, direction:Direction, mode:Mode):Int = {
+    mode match {
+      case SingleEvenOdd | SingleOddEven => if(page %2 == mode.modulo) {
+        page + direction.swapIfNeeded(column)
+      } else {
+        page - 1 + direction.swapIfNeeded(column)
+      }
+      case _ => page
+    }
+  }
 }
 
 case class ReaderState(
@@ -115,12 +127,12 @@ case class ReaderState(
       copy(partialStates = newPartialStates)
 
   def nextPage: ReaderState =
-    val newState1 = partialStates.head.nextPage
-    if(!newState1.success) this else withNewPartialStates(newState1.state, _.nextPage, true)
+    val newState1 = partialStates.head.nextPage(mode.delta)
+    if(!newState1.success) this else withNewPartialStates(newState1.state, _.nextPage(mode.delta), true)
 
   def prevPage: ReaderState =
-    val newState1 = partialStates.head.prevPage
-    if(!newState1.success) this else withNewPartialStates(newState1.state, _.prevPage, true)
+    val newState1 = partialStates.head.prevPage(mode.delta)
+    if(!newState1.success) this else withNewPartialStates(newState1.state, _.prevPage(mode.delta), true)
 
   def zoomIn: ReaderState =
     copy(zoomLevel = zoomLevel + 1)
@@ -130,11 +142,11 @@ case class ReaderState(
 
   def minus: ReaderState =
     if(partialStates.size<2) this else
-      withNewPartialStates(partialStates.head, _.prevPage, false)
+      withNewPartialStates(partialStates.head, _.prevPage(1), false)
 
   def plus: ReaderState =
     if(partialStates.size<2) this else
-      withNewPartialStates(partialStates.head, _.nextPage, false)
+      withNewPartialStates(partialStates.head, _.nextPage(1), false)
 
   private def horizontalScroll(delta: Double): ReaderState =
     copy(hs = checkScroll(hs + delta))
@@ -175,7 +187,7 @@ case class ReaderState(
   }
 
   def getPageIndicator(column:Int):String =
-    (if(column==0 || mode == SingleEvenOdd ||mode == SingleOddEven) partialStates.head else
+    (if(column==0 || mode == SingleEvenOdd || mode == SingleOddEven) partialStates.head else
       partialStates(1)).getPageIndicator
 
   def setDirection(dir:Direction): ReaderState = {
@@ -205,14 +217,14 @@ object ReaderState {
     def selectable:Boolean
   }
 
-  enum Mode(val description:String, val selectable:Boolean, val num:Int) extends MenuItemSource {
-    case Blank extends Mode("Blank", false, 0)
-    case Single extends Mode("MENU_ITEM_Single", true, 1)
-    case SingleOddEven extends Mode("MENU_ITEM_SingleWideOddEven", true, 1)
-    case SingleEvenOdd extends Mode("MENU_ITEM_SingleWideEvenOdd", true, 1)
-    case Dual2 extends Mode("MENU_ITEM_Dual_2_columns", true, 2)
-    case Dual1 extends Mode("MENU_ITEM_Dual_1_column", true, 2)
-    case Dual1b extends Mode("Dual 1 column alt", false, 2)
+  enum Mode(val description:String, val selectable:Boolean, val numFiles:Int, val modulo:Int, val delta:Int) extends MenuItemSource {
+    case Blank extends Mode("Blank", false, 0, -1, 0)
+    case Single extends Mode("MENU_ITEM_Single", true, 1, -1, 1)
+    case SingleOddEven extends Mode("MENU_ITEM_SingleWideOddEven", true, 1, 0, 2)
+    case SingleEvenOdd extends Mode("MENU_ITEM_SingleWideEvenOdd", true, 1, 1, 2)
+    case Dual2 extends Mode("MENU_ITEM_Dual_2_columns", true, 2, -1, 1)
+    case Dual1 extends Mode("MENU_ITEM_Dual_1_column", true, 2, -1, 1)
+    case Dual1b extends Mode("Dual 1 column alt", false, 2, -1, 1)
   }
 
   enum Size(val description:String) extends MenuItemSource {
