@@ -88,22 +88,26 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
 
     val numFiles = newState.partialStates.size
 
-    if(afterOpen) {
+    if(afterOpen)
       updateMenuBar(numFiles)
 
-      if(numFiles > 0)
-        frame.setTitle(newState.partialStates.map(_.name).mkString(" "))
-    }
+    if ((afterOpen || state.direction != newState.direction) && numFiles > 0)
+        updateTitle(newState.partialNames)
+
     state = newState
-    panel1.setNewState(newState)
-    if (numFiles == 2 || newState.mode == SingleEvenOdd || newState.mode == SingleOddEven)
-      panel2.setNewState(newState)
+
+    panel1.setNewState(state)
+    if (numFiles == 2 || state.mode == SingleEvenOdd || state.mode == SingleOddEven)
+      panel2.setNewState(state)
 
     SwingUtilities.invokeLater { () =>
       frame.repaint()
     }
   }
-  
+
+  private def updateTitle(newTitle:String):Unit =
+    frame.setTitle(newTitle)
+
   private def updateMenuBar(count:Int):Unit = {
     val menuBar = frame.getMenuBar
     val menu = menuBar.getMenu(1)

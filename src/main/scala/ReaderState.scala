@@ -54,6 +54,11 @@ case class ReaderState(
 
   def zoomFactor:Double = pow(ZOOM_STEP, zoomLevel)
 
+  def partialNames:String =
+    (if(direction ==LeftToRight) partialStates else partialStates.reverse)
+      .map(_.name)
+      .mkString(" / ")
+  
   def right:ReaderState =
     if(direction == LeftToRight) nextPage else prevPage
 

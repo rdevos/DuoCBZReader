@@ -12,7 +12,7 @@ jpackage --name DuoCBZReader \
          --runtime-image custom-jre \
          --dest ../target/mac \
          --copyright "Copyright 2025 Paul Janssens - All rights reserved" \
-         --app-version "1.0.5" \
+         --app-version "1.0.6" \
          --file-associations cbz.properties \
          --icon MyIcon.icns \
          --mac-package-identifier be.afront.reader
