@@ -21,8 +21,7 @@ import CBZImages.Direction
 import CBZImages.Direction.LeftToRight
 import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single, SingleEvenOdd, SingleOddEven}
 import ReaderState.Size.Image
-
-import PartialState.calcPage
+import PartialState.pageForColumn
 
 import java.awt.image.BufferedImage
 import java.nio.charset.Charset
@@ -48,7 +47,11 @@ case class PartialState(
   }
 
   def getPageIndicator:String =
-    s"${currentPage+1}/${pageCount}"
+    getIndicator(currentPage)
+
+  def getIndicator(ix:Int): String =
+    s"${ix + 1}/${pageCount}"
+
 
   def nextPage(delta:Int): PageSkip =
     pageChange(checkPage(currentPage + delta))
@@ -57,7 +60,7 @@ case class PartialState(
     pageChange(checkPage(currentPage - delta))
 
   def getCurrentImage(direction:Direction, mode:Mode, column:Int): Option[BufferedImage] = {
-    val actualPage = calcPage(currentPage, column, direction, mode)
+    val actualPage = pageForColumn(currentPage, column, direction, mode)
     if (actualPage >= 0 && actualPage < pageCount) {
       Some(images.getImage(actualPage, direction))
     } else {
@@ -80,7 +83,7 @@ object PartialState {
   def apply(images: CBZImages):PartialState =
     new PartialState(images)
 
-  def calcPage(page:Int, column:Int, direction:Direction, mode:Mode):Int = {
+  def pageForColumn(page:Int, column:Int, direction:Direction, mode:Mode):Int = {
     mode match {
       case SingleEvenOdd | SingleOddEven => if(page %2 == mode.modulo) {
         page + direction.swapIfNeeded(column)
@@ -186,9 +189,11 @@ case class ReaderState(
     state.flatMap(_.getCurrentImage(direction, mode, column))
   }
 
-  def getPageIndicator(column:Int):String =
-    (if(column==0 || mode == SingleEvenOdd || mode == SingleOddEven) partialStates.head else
-      partialStates(1)).getPageIndicator
+  def getPageIndicator(column:Int):String = {
+    if (mode == SingleEvenOdd || mode == SingleOddEven)
+      partialStates.head.getIndicator(pageForColumn(partialStates.head.currentPage, column, direction, mode))
+    else partialStates(column).getPageIndicator
+  }
 
   def setDirection(dir:Direction): ReaderState = {
     partialStates.foreach(_.partiallyClearCache())
