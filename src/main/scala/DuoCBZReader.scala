@@ -20,8 +20,8 @@ import java.awt.event.{ItemEvent, ItemListener}
 import java.awt.{CheckboxMenuItem, Desktop, Dimension, GraphicsEnvironment, GridLayout, Menu, MenuBar, MenuItem, Rectangle}
 import javax.swing.{ImageIcon, JFrame, JOptionPane}
 import javax.swing.WindowConstants.EXIT_ON_CLOSE
-import EventHandler.{menuItemsForEnumeratedMenu, modeMenuItems}
-import ReaderState.{Encoding, INITIAL_STATE, Mode, Size}
+import EventHandler.{allMenuItems, menuItemsForEnumeratedMenu, modeMenuItems}
+import ReaderState.{Encoding, Help, INITIAL_STATE, Mode, Size}
 import CBZImages.Dimensions
 import ResourceLookup.{Label, MenuItemKey, MenuKey, MessageKey}
 
@@ -64,6 +64,7 @@ object DuoCBZReader {
     menuBar.add(sizeMenu)
     menuBar.add(optionsMenu)
     menuBar.add(encodingMenu)
+    menuBar.add(helpMenu)
     menuBar
   }
 
@@ -105,6 +106,9 @@ object DuoCBZReader {
 
   private def encodingMenu(using EventHandler, ResourceLookup): Menu =
     localizedMenu(MenuKey.Encoding, menuItemsForEnumeratedMenu(Encoding.values.toList, (handler, tag) => handler.changeEncoding(tag)))
+
+  private def helpMenu(using EventHandler, ResourceLookup): Menu =
+    localizedMenu(MenuKey.Help, allMenuItems(Help.values.toList, (handler, tag) => handler.displayHelp(tag)))
 
   private def screenSize: Dimensions = {
     val ge = GraphicsEnvironment.getLocalGraphicsEnvironment

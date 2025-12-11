@@ -60,6 +60,9 @@ class CBZImages(file: File, encoding: Encoding) extends AutoCloseable {
   
   val entries: List[EntryName] = rootEntries.map(_.getName)
 
+  def name:String =
+    file.getName
+    
   private val dimensions: Map[EntryName, Dimensions] =
     (for {
       entry <- rootEntries

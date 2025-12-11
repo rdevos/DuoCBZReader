@@ -18,7 +18,7 @@ package be.afront.reader
 
 import EventHandler.{SENSITIVITY, WHEEL_SENSITIVITY, handle, modeMenuItems, open, openSelectedFiles}
 import CBZImages.Direction.{LeftToRight, RightToLeft}
-import ReaderState.{Encoding, MenuItemSource, Mode, Size}
+import ReaderState.{Encoding, Help, MenuItemSource, Mode, Size}
 import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single, SingleEvenOdd, SingleOddEven}
 import CBZImages.{Dimensions, FileCheck, checkFile}
 import ResourceLookup.MenuItemKey
@@ -26,13 +26,14 @@ import ResourceLookup.MenuItemKey
 import java.awt.desktop.{OpenFilesEvent, OpenFilesHandler}
 import java.awt.{FileDialog, Frame, Menu, MenuItem, Point}
 import java.awt.event.{ActionEvent, ActionListener, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener, MouseWheelEvent, MouseWheelListener}
-import javax.swing.{JFrame, SwingUtilities}
+import javax.swing.{JEditorPane, JFrame, JScrollPane, SwingUtilities}
 import java.awt.event.KeyEvent.{VK_2, VK_4, VK_6, VK_8, VK_ADD, VK_DOWN, VK_LEFT, VK_MINUS, VK_NUMPAD2, VK_NUMPAD4, VK_NUMPAD6, VK_NUMPAD8, VK_PLUS, VK_Q, VK_RIGHT, VK_SHIFT, VK_SUBTRACT, VK_UP}
 import java.awt.event.ItemEvent.SELECTED
+import javax.swing.WindowConstants.EXIT_ON_CLOSE
 import java.io.File
 import scala.List
 import scala.jdk.CollectionConverters.given
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success}
 
 
 class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
@@ -84,12 +85,18 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
       layoutChangeFor(newState)
       frame.revalidate()
     }
+
+    val numFiles = newState.partialStates.size
+
     if(afterOpen) {
-      updateMenuBar(newState.partialStates.size);
+      updateMenuBar(numFiles)
+
+      if(numFiles > 0)
+        frame.setTitle(newState.partialStates.map(_.name).mkString(" "))
     }
     state = newState
     panel1.setNewState(newState)
-    if (newState.partialStates.size == 2 || newState.mode == SingleEvenOdd || newState.mode == SingleOddEven)
+    if (numFiles == 2 || newState.mode == SingleEvenOdd || newState.mode == SingleOddEven)
       panel2.setNewState(newState)
 
     SwingUtilities.invokeLater { () =>
@@ -236,6 +243,20 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   def changeEncoding(newEncoding: Encoding): Unit =
     updateState(state.setEncoding(newEncoding))
 
+  def displayHelp(help: Help): Unit = {
+    val editorPane = new JEditorPane()
+    editorPane.setContentType("text/html")
+    val url = Option(getClass.getResource("/help/"+help.relativeUrl)).get
+    editorPane.setPage(url)
+    val scrollPane = new JScrollPane(editorPane)
+
+    val frame = new JFrame(help.description)
+    frame.add(scrollPane)
+    frame.setSize(800, 600)
+    frame.setVisible(true)
+  }
+
+
   override def mouseWheelMoved(e: MouseWheelEvent): Unit =
     updateState(state.scrollVertical(e.getWheelRotation * WHEEL_SENSITIVITY))
 
@@ -329,4 +350,14 @@ object EventHandler {
     menuItemsForEnumeratedMenu[Mode](
       Mode.values.toList.filter(item => item.numFiles == count),
       (handler, tag) => handler.changeMode(tag))
+
+  def allMenuItems[K <: MenuItemSource]
+    (itemValues:List[K], action:(EventHandler, K)=>Unit)
+    (using handler:EventHandler, lookup:ResourceLookup): List[MenuItem] = {
+    val items = Help.values.toList.map(q => new EnumeratedMenuItem(q, lookup(q)))
+    val actionListener: ActionListener = (e: ActionEvent) =>
+      action(handler, e.getSource.asInstanceOf[EnumeratedMenuItem[K]].tag)
+    items.foreach(item => item.addActionListener(actionListener))
+    items
+  }
 }
