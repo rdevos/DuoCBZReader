@@ -1,5 +1,7 @@
+# A lightweight Scala-based CBZ reader for comic books. 
 
-# how to run
+
+## how to run
 
 you will need a java JDK and a development environment that can compile scala,
 e.g. IntelliJ with the scala plugin
