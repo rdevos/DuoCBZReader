@@ -1,5 +1,9 @@
 # A lightweight Scala-based CBZ reader for comic books. 
 
+## Features
+
+Read a cbz comic in single or two-page mode, or two different comics side by side for comparison.
+
 
 ## how to run
 
