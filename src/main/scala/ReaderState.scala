@@ -17,11 +17,11 @@
 package be.afront.reader
 
 import ReaderState.{Encoding, Mode, SCROLL_STEP, Size, ZOOM_STEP, modeFrom}
-import CBZImages.Direction
+import CBZImages.{Direction, PanelID}
 import CBZImages.Direction.LeftToRight
 import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single, SingleEvenOdd, SingleOddEven}
 import ReaderState.Size.Image
-import PartialState.pageForColumn
+import PartialState.pageForPanel
 
 import java.awt.image.BufferedImage
 import java.nio.charset.Charset
@@ -116,24 +116,24 @@ case class ReaderState(
   def scrollVertical(dy: Double): ReaderState =
     scrollTo(hs, vs+dy)
 
-  def getCurrentImage(column:Int): Option[BufferedImage] = {
+  def getCurrentImage(panelID:PanelID): Option[BufferedImage] = {
 
     val state = mode match {
       case Blank => None
       case Dual1 | Single | SingleEvenOdd | SingleOddEven => Option(partialStates.head)
       case Dual1b => Option(partialStates(1))
       case _ => {
-        val signedColumn = direction.swapIfNeeded(column)
+        val signedColumn = panelID.indexForDirection(direction)
         if (signedColumn == 0) Option(partialStates.head) else if (signedColumn == 1) Option(partialStates(1)) else None
       }
     }
-    state.flatMap(_.getCurrentImage(direction, mode, column))
+    state.flatMap(_.getCurrentImage(direction, mode, panelID))
   }
 
-  def getPageIndicator(column:Int):String = {
+  def getPageIndicator(panelID:PanelID):String = {
     if (mode == SingleEvenOdd || mode == SingleOddEven)
-      partialStates.head.getIndicator(pageForColumn(partialStates.head.currentPage, column, direction, mode))
-    else partialStates(column).getPageIndicator
+      partialStates.head.getIndicator(pageForPanel(partialStates.head.currentPage, panelID, direction, mode))
+    else partialStates(panelID.index).getPageIndicator
   }
 
   def setDirection(dir:Direction): ReaderState = {

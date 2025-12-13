@@ -1,10 +1,25 @@
 package be.afront.reader
 
-import CBZImages.Direction
+/*
+  Copyright 2025 Paul Janssens - All rights reserved
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+*/
+
+import CBZImages.{Direction, PanelID}
 import ReaderState.Mode
 import ReaderState.Mode.{SingleEvenOdd, SingleOddEven}
-
-import PartialState.pageForColumn
+import PartialState.pageForPanel
 
 import java.awt.image.BufferedImage
 
@@ -42,8 +57,8 @@ case class PartialState(
   def prevPage(delta:Int): PageSkip =
     pageChange(checkPage(currentPage - delta))
 
-  def getCurrentImage(direction:Direction, mode:Mode, column:Int): Option[BufferedImage] = {
-    val actualPage = pageForColumn(currentPage, column, direction, mode)
+  def getCurrentImage(direction:Direction, mode:Mode, panelID:PanelID): Option[BufferedImage] = {
+    val actualPage = pageForPanel(currentPage, panelID, direction, mode)
     if (actualPage >= 0 && actualPage < pageCount) {
       Some(images.getImage(actualPage, direction))
     } else {
@@ -66,12 +81,12 @@ object PartialState {
   def apply(images: CBZImages):PartialState =
     new PartialState(images)
 
-  def pageForColumn(page:Int, column:Int, direction:Direction, mode:Mode):Int = {
+  def pageForPanel(page:Int, panel:PanelID, direction:Direction, mode:Mode):Int = {
     mode match {
       case SingleEvenOdd | SingleOddEven => if(page %2 == mode.modulo) {
-        page + direction.swapIfNeeded(column)
+        page + panel.indexForDirection(direction)
       } else {
-        page - 1 + direction.swapIfNeeded(column)
+        page - 1 + panel.indexForDirection(direction)
       }
       case _ => page
     }

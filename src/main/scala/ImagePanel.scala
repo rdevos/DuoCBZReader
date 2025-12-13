@@ -19,22 +19,24 @@ package be.afront.reader
 import ImagePanel.indicatorFont
 import ReaderState.Size.{Actual, Width}
 
+import be.afront.reader.CBZImages.PanelID
+
 import java.awt.{Color, Font, Graphics, Graphics2D}
 import java.awt.RenderingHints.{KEY_INTERPOLATION, VALUE_INTERPOLATION_BILINEAR}
 import javax.swing.JPanel
 
-class ImagePanel(initialState: ReaderState, column:Int) extends JPanel {
+class ImagePanel(initialState: ReaderState, panelID:PanelID) extends JPanel {
 
   private var state = initialState
 
   def setNewState(newState: ReaderState): Unit = {
     state = newState
-    state.getCurrentImage(column)
+    state.getCurrentImage(panelID)
   }
   
   override def paintComponent(g: Graphics): Unit = {
     super.paintComponent(g)
-    state.getCurrentImage(column).foreach { img =>
+    state.getCurrentImage(panelID).foreach { img =>
       val g2d = g.asInstanceOf[Graphics2D]
       g2d.setRenderingHint(KEY_INTERPOLATION, VALUE_INTERPOLATION_BILINEAR)
 
@@ -70,7 +72,7 @@ class ImagePanel(initialState: ReaderState, column:Int) extends JPanel {
       if(state.showPageNumbers) {
         g2d.setColor(Color.BLACK)
         g2d.setFont(indicatorFont)
-        g2d.drawString(state.getPageIndicator(column), 20, panelHeight - 20)
+        g2d.drawString(state.getPageIndicator(panelID), 20, panelHeight - 20)
       }
     }
   }

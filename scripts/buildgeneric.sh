@@ -1,6 +1,6 @@
 #!/bin/bash
 
-./buildcommon.sh
+source ./buildcommon.sh
 
 rm -rf ../target/generic
 
@@ -12,7 +12,7 @@ jpackage --name DuoCBZReader \
          --runtime-image custom-jre \
          --dest ../target/generic \
          --copyright "Copyright 2025 Paul Janssens - All rights reserved" \
-         --app-version "1.0.6" \
+         --app-version "${VERSION}" \
          --file-associations zip.properties \
          --file-associations cbz.properties \
          --file-associations epub.properties \

@@ -2,6 +2,8 @@
 
 rm -rf custom-jre
 
+VERSION=1.0.6
+
 JDK_MAJOR=$(jlink --version | cut -d '.' -f 1)
 
 # Avoid warnings but still support older JDKs

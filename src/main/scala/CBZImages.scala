@@ -18,8 +18,9 @@ package be.afront.reader
 
 import CBZImages.{Dimensions, Direction, Part, getDimensions}
 import CBZImages.Part.{First, Latter}
-
 import ReaderState.Encoding
+
+import be.afront.reader.CBZImages.Direction.{LeftToRight, RightToLeft}
 
 import java.awt.image.BufferedImage
 import org.apache.commons.compress.archivers.zip.{ZipArchiveEntry, ZipFile}
@@ -136,6 +137,16 @@ object CBZImages {
 
   type FileCheck = (file: File, image: Try[CBZImages])
 
+  enum PanelID(var index:Int) {
+    case LeftOrFront extends PanelID(0)
+    case RightOrBack extends PanelID(1)
+
+    def indexForDirection(direction:Direction):Int = direction match {
+      case LeftToRight => index
+      case RightToLeft => 1 - index
+    }
+  }
+  
   enum Side {
     case Left, Right
   }
@@ -146,11 +157,6 @@ object CBZImages {
     def sideFor(part:Part):Side = this match {
       case LeftToRight => if(part == First) Side.Left else Side.Right
       case RightToLeft => if(part == First) Side.Right else Side.Left
-    }
-    
-    def swapIfNeeded(column:Int):Int = this match {
-      case LeftToRight => column
-      case RightToLeft => 1 - column
     }
   }
 

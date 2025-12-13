@@ -25,6 +25,8 @@ import ReaderState.{Encoding, Help, INITIAL_STATE, Mode, Size}
 import CBZImages.Dimensions
 import ResourceLookup.{Label, MenuItemKey, MenuKey, MessageKey}
 
+import CBZImages.PanelID.{LeftOrFront, RightOrBack}
+
 import java.awt.desktop.{AboutEvent, AboutHandler}
 import java.util.Locale
 
@@ -44,8 +46,8 @@ object DuoCBZReader {
     frame.setLayout(new GridLayout(1, 2))
 
     val state:ReaderState = INITIAL_STATE
-    val panel1 = new ImagePanel(state, 0)
-    val panel2 = new ImagePanel(state, 1)
+    val panel1 = new ImagePanel(state, LeftOrFront)
+    val panel2 = new ImagePanel(state, RightOrBack)
 
     given ResourceLookup = lookup
     val handler = new EventHandler(frame, panel1, panel2, state, availableScreenSize)
