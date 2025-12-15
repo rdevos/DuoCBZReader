@@ -25,7 +25,7 @@ import ResourceLookup.MenuItemKey
 
 import java.awt.desktop.{OpenFilesEvent, OpenFilesHandler}
 import java.awt.{FileDialog, Frame, Menu, MenuItem, Point}
-import java.awt.event.{ActionEvent, ActionListener, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener, MouseWheelEvent, MouseWheelListener}
+import java.awt.event.{ActionEvent, ActionListener, ItemEvent, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener, MouseWheelEvent, MouseWheelListener}
 import javax.swing.{JEditorPane, JFrame, JScrollPane, SwingUtilities}
 import java.awt.event.KeyEvent.{VK_2, VK_4, VK_6, VK_8, VK_ADD, VK_DOWN, VK_LEFT, VK_MINUS, VK_NUMPAD2, VK_NUMPAD4, VK_NUMPAD6, VK_NUMPAD8, VK_PLUS, VK_Q, VK_RIGHT, VK_SHIFT, VK_SUBTRACT, VK_UP}
 import java.awt.event.ItemEvent.SELECTED
@@ -89,7 +89,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     val numFiles = newState.partialStates.size
 
     if(afterOpen)
-      updateMenuBar(numFiles)
+      updateMenuBar(numFiles, newState)
 
     if ((afterOpen || state.direction != newState.direction) && numFiles > 0)
         updateTitle(newState.partialNames)
@@ -108,11 +108,25 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   private def updateTitle(newTitle:String):Unit =
     frame.setTitle(newTitle)
 
-  private def updateMenuBar(count:Int):Unit = {
+  private def updateMenuBar(count:Int, newState:ReaderState):Unit = {
     val menuBar = frame.getMenuBar
-    val menu = menuBar.getMenu(1)
-    menu.removeAll()
-    modeMenuItems(count)(using this, lookup).foreach(menu.add)
+
+    val modeMenu = menuBar.getMenu(1)
+    modeMenu.removeAll()
+
+    if(count > 0) {
+      val recentMenu: Menu = menuBar.getMenu(0).getItem(1).asInstanceOf[Menu]
+      recentMenu.add(recentFileMenuItem(newState))
+    }
+
+    modeMenuItems(count)(using this, lookup).foreach(modeMenu.add)
+  }
+  
+  private def recentFileMenuItem(newState:ReaderState): MenuItem = {
+    val files = newState.partialStates.map(s => s.images.file)
+    val item = new RecentFileMenuItem(files)
+    item.addActionListener((e: ActionEvent) => openFiles(files))
+    item 
   }
 
   private def updateStateForNewFiles(state: ReaderState):Unit = {
@@ -266,9 +280,12 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
 
   override
   def openFiles(e: OpenFilesEvent): Unit = {
-    val paths = e.getFiles.asScala.toList
-    if (paths.nonEmpty) {
-      val images = paths.take(2).map(p => checkFile(p, state.encoding)).flatMap((checkResult:FileCheck) => checkResult match {
+    openFiles(e.getFiles.asScala.toList)
+  }
+
+  def openFiles(files:List[File]): Unit = {
+    if (files.nonEmpty) {
+      val images = files.take(2).map(p => checkFile(p, state.encoding)).flatMap((checkResult:FileCheck) => checkResult match {
         case (file, Failure(err)) => {
           handle(file, err);None
         }

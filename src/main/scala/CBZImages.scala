@@ -34,7 +34,7 @@ import scala.jdk.CollectionConverters.*
 import scala.util.{Try, Using}
 
 
-class CBZImages(file: File, encoding: Encoding) extends AutoCloseable {
+class CBZImages(val file: File, encoding: Encoding) extends AutoCloseable {
 
   extension [B](builder: B)
     def setIfNonNull[T](value: T)(setter: (B, T) => B): B =
@@ -137,7 +137,7 @@ object CBZImages {
 
   type FileCheck = (file: File, image: Try[CBZImages])
 
-  enum PanelID(var index:Int) {
+  enum PanelID(val index:Int) {
     case LeftOrFront extends PanelID(0)
     case RightOrBack extends PanelID(1)
 
