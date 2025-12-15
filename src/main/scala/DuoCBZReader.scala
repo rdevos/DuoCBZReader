@@ -93,6 +93,7 @@ object DuoCBZReader {
   private def fileMenu(using EventHandler, ResourceLookup): Menu =
     localizedMenu(MenuKey.File, List(
       menuItem(MenuItemKey.Open),
+      localizedMenu(MenuKey.Recent, List(menuItem(MenuItemKey.Clear))),
       menuItem(MenuItemKey.Info)))
 
   private def modeMenu(mode: Mode)(using EventHandler, ResourceLookup): Menu =

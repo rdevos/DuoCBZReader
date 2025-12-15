@@ -35,6 +35,7 @@ object ResourceLookup {
 
   enum MenuKey(val description: String) extends ResourceKey {
     case File extends MenuKey("MENU_File")
+    case Recent extends MenuKey("MENU_Recent")
     case Mode extends MenuKey("MENU_Mode")
     case Size extends MenuKey("MENU_Size")
     case Options extends MenuKey("MENU_Options")
@@ -44,6 +45,7 @@ object ResourceLookup {
 
   enum MenuItemKey(val description: String) extends ResourceKey {
     case Open extends MenuItemKey("MENU_ITEM_Open")
+    case Clear extends MenuItemKey("MENU_ITEM_Clear")
     case Info extends MenuItemKey("MENU_ITEM_Info")
     case RightToLeft extends MenuItemKey("MENU_ITEM_Right_To_Left")
     case PageNumbers extends MenuItemKey("MENU_ITEM_Page_Numbers")
