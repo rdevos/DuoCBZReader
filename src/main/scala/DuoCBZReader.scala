@@ -20,12 +20,12 @@ import java.awt.event.{ItemEvent, ItemListener}
 import java.awt.{CheckboxMenuItem, Desktop, Dimension, GraphicsEnvironment, GridLayout, Menu, MenuBar, MenuItem, Rectangle}
 import javax.swing.{ImageIcon, JFrame, JOptionPane}
 import javax.swing.WindowConstants.EXIT_ON_CLOSE
-import EventHandler.{allMenuItems, menuItemsForEnumeratedMenu, modeMenuItems}
 import ReaderState.{Encoding, Help, INITIAL_STATE, Mode, Size}
 import CBZImages.Dimensions
 import ResourceLookup.{Label, MenuItemKey, MenuKey, MessageKey}
-
 import CBZImages.PanelID.{LeftOrFront, RightOrBack}
+
+import be.afront.reader.MenuBuilder.initMenus
 
 import java.awt.desktop.{AboutEvent, AboutHandler}
 import java.util.Locale
@@ -58,61 +58,7 @@ object DuoCBZReader {
     frame.requestFocusInWindow()
     setupDesktop
   }
-
-  private def initMenus(mode: Mode)(using EventHandler, ResourceLookup): MenuBar = {
-    val menuBar = new MenuBar()
-    menuBar.add(fileMenu)
-    menuBar.add(modeMenu(mode))
-    menuBar.add(sizeMenu)
-    menuBar.add(optionsMenu)
-    menuBar.add(encodingMenu)
-    menuBar.add(helpMenu)
-    menuBar
-  }
-
-  private def localizedMenu(key:MenuKey, items:List[MenuItem])(using lookup:ResourceLookup): Menu = {
-    val menu = new Menu(lookup(key))
-    items.foreach(menu.add)
-    menu
-  }
-
-  private def menuItem(key: MenuItemKey)(using handler: EventHandler, lookup: ResourceLookup): MenuItem =
-    val item = new MenuItem(lookup(key))
-    item.setActionCommand(key.description)
-    item.addActionListener(handler)
-    item
-
-  private def checkBoxMenu(key: MenuItemKey, value: Boolean, action: (EventHandler,Int) => Unit)
-                          (using handler:EventHandler, lookup: ResourceLookup): MenuItem = {
-    val menuItem = new CheckboxMenuItem(lookup(key))
-    menuItem.setState(value)
-    menuItem.addItemListener((e: ItemEvent) => action(handler, e.getStateChange))
-    menuItem
-  }
-
-  private def fileMenu(using EventHandler, ResourceLookup): Menu =
-    localizedMenu(MenuKey.File, List(
-      menuItem(MenuItemKey.Open),
-      localizedMenu(MenuKey.Recent, List(menuItem(MenuItemKey.Clear))),
-      menuItem(MenuItemKey.Info)))
-
-  private def modeMenu(mode: Mode)(using EventHandler, ResourceLookup): Menu =
-    localizedMenu(MenuKey.Mode, modeMenuItems(mode.numFiles))
-
-  private def sizeMenu(using EventHandler, ResourceLookup): Menu =
-    localizedMenu(MenuKey.Size, menuItemsForEnumeratedMenu(Size.values.toList,(handler, tag) => handler.changeSize(tag)))
-
-  private def optionsMenu(using handler:EventHandler, lookup:ResourceLookup): Menu =
-    localizedMenu(MenuKey.Options, List(
-      checkBoxMenu(MenuItemKey.RightToLeft, false, (a,b) => a.directionChange(b)),
-      checkBoxMenu(MenuItemKey.PageNumbers, true, (a,b) => a.togglePageNumbers(b))))
-
-  private def encodingMenu(using EventHandler, ResourceLookup): Menu =
-    localizedMenu(MenuKey.Encoding, menuItemsForEnumeratedMenu(Encoding.values.toList, (handler, tag) => handler.changeEncoding(tag)))
-
-  private def helpMenu(using EventHandler, ResourceLookup): Menu =
-    localizedMenu(MenuKey.Help, allMenuItems(Help.values.toList, (handler, tag) => handler.displayHelp(tag)))
-
+  
   private def screenSize: Dimensions = {
     val ge = GraphicsEnvironment.getLocalGraphicsEnvironment
     val usableBounds: Rectangle = ge.getMaximumWindowBounds

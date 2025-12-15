@@ -16,12 +16,14 @@
 
 package be.afront.reader
 
-import EventHandler.{SENSITIVITY, WHEEL_SENSITIVITY, handle, modeMenuItems, open, openSelectedFiles}
+import EventHandler.{SENSITIVITY, WHEEL_SENSITIVITY, handle, open, openSelectedFiles}
 import CBZImages.Direction.{LeftToRight, RightToLeft}
-import ReaderState.{Encoding, Help, MenuItemSource, Mode, Size}
+import ReaderState.{Encoding, Help, Mode, Size}
 import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single, SingleEvenOdd, SingleOddEven}
 import CBZImages.{Dimensions, FileCheck, checkFile}
 import ResourceLookup.MenuItemKey
+
+import MenuBuilder.{menuItem, modeMenuItems}
 
 import java.awt.desktop.{OpenFilesEvent, OpenFilesHandler}
 import java.awt.{FileDialog, Frame, Menu, MenuItem, Point}
@@ -108,22 +110,22 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   private def updateTitle(newTitle:String):Unit =
     frame.setTitle(newTitle)
 
-  private def updateMenuBar(count:Int, newState:ReaderState):Unit = {
+  private def updateMenuBar(count:Int, newState:ReaderState)(using lookup: ResourceLookup):Unit = {
     val menuBar = frame.getMenuBar
 
     val modeMenu = menuBar.getMenu(1)
     modeMenu.removeAll()
-
-    if(count > 0) {
-      val recentMenu: Menu = menuBar.getMenu(0).getItem(1).asInstanceOf[Menu]
-      recentMenu.add(recentFileMenuItem(newState))
-    }
-
     modeMenuItems(count)(using this, lookup).foreach(modeMenu.add)
+
+    val recentMenu: Menu = menuBar.getMenu(0).getItem(1).asInstanceOf[Menu]
+    recentMenu.removeAll()
+    newState.recentFiles.foreach(files => recentMenu.add(recentFileMenuItem(files)))
+    if(newState.recentFiles.nonEmpty)
+      recentMenu.addSeparator()
+    recentMenu.add(menuItem(MenuItemKey.Clear)(using this, lookup))
   }
   
-  private def recentFileMenuItem(newState:ReaderState): MenuItem = {
-    val files = newState.partialStates.map(s => s.images.file)
+  private def recentFileMenuItem(files:List[File]): MenuItem = {
     val item = new RecentFileMenuItem(files)
     item.addActionListener((e: ActionEvent) => openFiles(files))
     item 
@@ -341,44 +343,4 @@ object EventHandler {
 
   def openSelectedFiles(currentState:ReaderState, files:List[CBZImages]) : ReaderState =
     new ReaderState(files, currentState)
-
-  private class EnumeratedValueChangeListener[K <: MenuItemSource](handler: EventHandler, action:(EventHandler, K)=>Unit) extends ActionListener {
-
-    override
-    def actionPerformed(e: ActionEvent): Unit = {
-      val selected: EnumeratedMenuItem[K] = e.getSource.asInstanceOf[EnumeratedMenuItem[K]]
-      val menu = selected.getParent.asInstanceOf[Menu]
-      for (i <- 0 until menu.getItemCount) {
-        val item = menu.getItem(i)
-        item.setEnabled(item != selected)
-      }
-      action(handler, selected.tag)
-    }
-  }
-
-  def menuItemsForEnumeratedMenu[K <: MenuItemSource]
-      (itemValues:List[K], action:(EventHandler, K)=>Unit)
-      (using handler:EventHandler, lookup:ResourceLookup): List[MenuItem] = {
-    val items = itemValues.filter(_.selectable).map(q => new EnumeratedMenuItem(q, lookup(q)))
-    if(items.nonEmpty)
-      items.head.setEnabled(false)
-    val listener = new EnumeratedValueChangeListener(handler, action)
-    items.foreach(item => item.addActionListener(listener))
-    items
-  }
-  
-  def modeMenuItems(count:Int)(using EventHandler, ResourceLookup):List[MenuItem] =
-    menuItemsForEnumeratedMenu[Mode](
-      Mode.values.toList.filter(item => item.numFiles == count),
-      (handler, tag) => handler.changeMode(tag))
-
-  def allMenuItems[K <: MenuItemSource]
-    (itemValues:List[K], action:(EventHandler, K)=>Unit)
-    (using handler:EventHandler, lookup:ResourceLookup): List[MenuItem] = {
-    val items = Help.values.toList.map(q => new EnumeratedMenuItem(q, lookup(q)))
-    val actionListener: ActionListener = (e: ActionEvent) =>
-      action(handler, e.getSource.asInstanceOf[EnumeratedMenuItem[K]].tag)
-    items.foreach(item => item.addActionListener(actionListener))
-    items
-  }
 }

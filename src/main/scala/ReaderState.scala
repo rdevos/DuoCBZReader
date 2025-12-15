@@ -16,7 +16,7 @@
 
 package be.afront.reader
 
-import ReaderState.{Encoding, Mode, SCROLL_STEP, Size, ZOOM_STEP, modeFrom}
+import ReaderState.{Encoding, Mode, SCROLL_STEP, Size, ZOOM_STEP, modeFrom, processRecents}
 import CBZImages.{Direction, PanelID}
 import CBZImages.Direction.LeftToRight
 import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single, SingleEvenOdd, SingleOddEven}
@@ -24,6 +24,7 @@ import ReaderState.Size.Image
 import PartialState.pageForPanel
 
 import java.awt.image.BufferedImage
+import java.io.File
 import java.nio.charset.Charset
 import scala.math.pow
 
@@ -40,17 +41,19 @@ case class ReaderState(
    size: Size,
    direction:Direction,
    encoding: Encoding,
-   showPageNumbers:Boolean                   
+   showPageNumbers:Boolean,
+   recentFiles:List[List[File]]
 ) extends AutoCloseable {
 
   private def checkScroll(pos: Double): Double =
     math.max(0.0, math.min(1.0, pos))
 
-  def this(cbzImages: List[CBZImages], size:Size, direction:Direction, encoding:Encoding, showPageNumbers:Boolean) =
-    this(modeFrom(cbzImages.size),  cbzImages.map(m => PartialState(m)), 0, 0.5, 0.5, size, direction, encoding,  showPageNumbers)
+  def this(cbzImages: List[CBZImages], size:Size, direction:Direction, encoding:Encoding, showPageNumbers:Boolean, recentFiles:List[List[File]]) =
+    this(modeFrom(cbzImages.size),  cbzImages.map(m => PartialState(m)), 0, 0.5, 0.5, size, direction, encoding,  showPageNumbers, recentFiles)
 
   def this(cbzImages: List[CBZImages], currentState:ReaderState) =
-    this(cbzImages, currentState.size, currentState.direction, currentState.encoding, currentState.showPageNumbers)
+    this(cbzImages, currentState.size, currentState.direction, currentState.encoding, currentState.showPageNumbers,
+      processRecents(currentState.recentFiles, cbzImages.map(_.file)))
 
   def zoomFactor:Double = pow(ZOOM_STEP, zoomLevel)
 
@@ -201,11 +204,15 @@ object ReaderState {
   
   def ZOOM_STEP = 1.2
 
-  def INITIAL_STATE = new ReaderState(List(), Image, LeftToRight, Encoding.DEFAULT, true);
+  def INITIAL_STATE = new ReaderState(List(), Image, LeftToRight, Encoding.DEFAULT, true, List());
 
-  def apply(files:List[CBZImages], size:Size, direction:Direction, encoding:Encoding, showPageNumbers:Boolean): ReaderState =
-    new ReaderState(files, size, direction, encoding, showPageNumbers)
+  def apply(files:List[CBZImages], size:Size, direction:Direction, encoding:Encoding, showPageNumbers:Boolean, recentFiles:List[List[File]]): ReaderState =
+    new ReaderState(files, size, direction, encoding, showPageNumbers, recentFiles)
 
   def modeFrom(size: Int):Mode =
     if (size == 2) Dual2 else if (size == 1) Single else Blank
+
+  def processRecents(currentRecents:List[List[File]], newlyOpened:List[File]):List[List[File]] =
+    if(currentRecents.contains(newlyOpened)) currentRecents else
+      (newlyOpened::currentRecents).take(10)
 }
