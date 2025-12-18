@@ -22,12 +22,13 @@ import ReaderState.Mode.{SingleEvenOdd, SingleOddEven}
 import PartialState.pageForPanel
 
 import java.awt.image.BufferedImage
+import java.io.File
 
 case class PartialState(
    images: CBZImages,
    currentPage: Int
  ) extends AutoCloseable {
-  
+
   private val pageCount = images.totalPages
 
   def this(images: CBZImages) =
@@ -39,10 +40,9 @@ case class PartialState(
   def name:String =
     images.name
   
-  def pageChange(newPage:Int):PageSkip = {
+  def pageChange(newPage:Int):PageSkip =
     if(newPage == currentPage) (state=this, success=false) else
       (state=copy(currentPage = newPage), success=true)
-  }
 
   def getPageIndicator:String =
     getIndicator(currentPage)
@@ -50,6 +50,8 @@ case class PartialState(
   def getIndicator(ix:Int): String =
     s"${ix + 1}/${pageCount}"
 
+  def setPage(newPage:Int):PartialState =
+    pageChange(checkPage(newPage)).state
 
   def nextPage(delta:Int): PageSkip =
     pageChange(checkPage(currentPage + delta))
@@ -74,16 +76,22 @@ case class PartialState(
 
   def metadata:String =
     images.metadata
+    
+  def file:File =
+    images.file  
 }
 
 object PartialState {
+
+  // odd/even semantics use conventional page numbering starting from 1
+  private def CONVENTIONAL_PAGE_NUMBERING_OFFSET = 1
 
   def apply(images: CBZImages):PartialState =
     new PartialState(images)
 
   def pageForPanel(page:Int, panel:PanelID, direction:Direction, mode:Mode):Int = {
     mode match {
-      case SingleEvenOdd | SingleOddEven => if(page %2 == mode.modulo) {
+      case SingleEvenOdd | SingleOddEven => if((page + CONVENTIONAL_PAGE_NUMBERING_OFFSET) %2 == mode.modulo) {
         page + panel.indexForDirection(direction)
       } else {
         page - 1 + panel.indexForDirection(direction)

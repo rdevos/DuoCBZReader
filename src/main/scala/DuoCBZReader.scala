@@ -16,16 +16,15 @@
 
 package be.afront.reader
 
-import java.awt.event.{ItemEvent, ItemListener}
-import java.awt.{CheckboxMenuItem, Desktop, Dimension, GraphicsEnvironment, GridLayout, Menu, MenuBar, MenuItem, Rectangle}
+import java.awt.{Desktop, Dimension, GraphicsEnvironment, GridLayout, Rectangle}
 import javax.swing.{ImageIcon, JFrame, JOptionPane}
 import javax.swing.WindowConstants.EXIT_ON_CLOSE
-import ReaderState.{Encoding, Help, INITIAL_STATE, Mode, Size}
+import ReaderState.INITIAL_STATE
 import CBZImages.Dimensions
-import ResourceLookup.{Label, MenuItemKey, MenuKey, MessageKey}
+import ResourceLookup.{Label, MessageKey}
 import CBZImages.PanelID.{LeftOrFront, RightOrBack}
 
-import be.afront.reader.MenuBuilder.initMenus
+import MenuBuilder.initMenus
 
 import java.awt.desktop.{AboutEvent, AboutHandler}
 import java.util.Locale

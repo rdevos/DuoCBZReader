@@ -41,10 +41,11 @@ object MenuBuilder {
     items.foreach(menu.add)
     menu
   }
-
-  def menuItem(key: MenuItemKey)(using handler: EventHandler, lookup: ResourceLookup): MenuItem =
+  
+  def menuItem(key: MenuItemKey, enabled:Boolean)(using handler: EventHandler, lookup: ResourceLookup): MenuItem =
     val item = new MenuItem(lookup(key))
     item.setActionCommand(key.description)
+    item.setEnabled(enabled)
     item.addActionListener(handler)
     item
 
@@ -58,9 +59,9 @@ object MenuBuilder {
 
   def fileMenu(using EventHandler, ResourceLookup): Menu =
     localizedMenu(MenuKey.File, List(
-      menuItem(MenuItemKey.Open),
-      localizedMenu(MenuKey.Recent, List(menuItem(MenuItemKey.Clear))),
-      menuItem(MenuItemKey.Info)))
+      menuItem(MenuItemKey.Open, true),
+      localizedMenu(MenuKey.Recent, List(menuItem(MenuItemKey.Clear, false))),
+      menuItem(MenuItemKey.Info, true)))
   
   def modeMenu(mode: Mode)(using EventHandler, ResourceLookup): Menu =
     localizedMenu(MenuKey.Mode, modeMenuItems(mode.numFiles))

@@ -16,7 +16,7 @@
 
 package be.afront.reader
 
-import ReaderState.{Encoding, Mode, SCROLL_STEP, Size, ZOOM_STEP, modeFrom, processRecents}
+import ReaderState.{Encoding, INITIAL_STATE, Mode, SCROLL_STEP, Size, ZOOM_STEP, modeFrom, processRecents}
 import CBZImages.{Direction, PanelID}
 import CBZImages.Direction.LeftToRight
 import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single, SingleEvenOdd, SingleOddEven}
@@ -30,8 +30,6 @@ import scala.math.pow
 
 type PageSkip = (state:PartialState, success:Boolean)
 
-
-
 case class ReaderState(
    mode: Mode,
    partialStates: List[PartialState],
@@ -42,33 +40,39 @@ case class ReaderState(
    direction:Direction,
    encoding: Encoding,
    showPageNumbers:Boolean,
-   recentFiles:List[List[File]]
+   recentStates:List[RecentState]
 ) extends AutoCloseable {
 
   private def checkScroll(pos: Double): Double =
     math.max(0.0, math.min(1.0, pos))
 
-  def this(cbzImages: List[CBZImages], size:Size, direction:Direction, encoding:Encoding, showPageNumbers:Boolean, recentFiles:List[List[File]]) =
-    this(modeFrom(cbzImages.size),  cbzImages.map(m => PartialState(m)), 0, 0.5, 0.5, size, direction, encoding,  showPageNumbers, recentFiles)
+  private def this(partialStates: List[PartialState], size:Size, direction:Direction, encoding:Encoding, showPageNumbers:Boolean, recentStates:List[RecentState]) =
+    this(modeFrom(partialStates.size), partialStates, 0, 0.5, 0.5, size, direction, encoding,  showPageNumbers, recentStates)
 
-  def this(cbzImages: List[CBZImages], currentState:ReaderState) =
-    this(cbzImages, currentState.size, currentState.direction, currentState.encoding, currentState.showPageNumbers,
-      processRecents(currentState.recentFiles, cbzImages.map(_.file)))
+  def this(partialStates: List[PartialState], currentState:ReaderState) =
+    this(partialStates, currentState.size, currentState.direction, currentState.encoding, currentState.showPageNumbers,
+      processRecents(currentState.recentStates, RecentState(partialStates.map(_.images.file), INITIAL_STATE.toSave)))
 
   def zoomFactor:Double = pow(ZOOM_STEP, zoomLevel)
+
+  def files:List[File] =
+    partialStates.map(_.file)
+    
+  def toSave:PersistedReaderState =
+    PersistedReaderState(mode, partialStates.map(_.currentPage), zoomLevel, hs, vs, size, direction, encoding, showPageNumbers)
 
   def partialNames:String =
     (if(direction ==LeftToRight) partialStates else partialStates.reverse)
       .map(_.name)
       .mkString(" / ")
-  
+
   def right:ReaderState =
     if(direction == LeftToRight) nextPage else prevPage
 
   def left:ReaderState =
     if(direction == LeftToRight) prevPage else nextPage
 
-  def withNewPartialStates(main: PartialState, f: PartialState => PageSkip, adjust: Boolean): ReaderState =
+  private def withNewPartialStates(main: PartialState, f: PartialState => PageSkip, adjust: Boolean): ReaderState =
     val newPartialStates = main :: partialStates.tail.map(f(_).state)
     if (adjust) copy(partialStates = newPartialStates, hs = 0.5, vs = 0.0) else
       copy(partialStates = newPartialStates)
@@ -125,10 +129,9 @@ case class ReaderState(
       case Blank => None
       case Dual1 | Single | SingleEvenOdd | SingleOddEven => Option(partialStates.head)
       case Dual1b => Option(partialStates(1))
-      case _ => {
+      case _ =>
         val signedColumn = panelID.indexForDirection(direction)
         if (signedColumn == 0) Option(partialStates.head) else if (signedColumn == 1) Option(partialStates(1)) else None
-      }
     }
     state.flatMap(_.getCurrentImage(direction, mode, panelID))
   }
@@ -169,8 +172,8 @@ object ReaderState {
   enum Mode(val description:String, val selectable:Boolean, val numFiles:Int, val modulo:Int, val delta:Int) extends MenuItemSource {
     case Blank extends Mode("Blank", false, 0, -1, 0)
     case Single extends Mode("MENU_ITEM_Single", true, 1, -1, 1)
-    case SingleOddEven extends Mode("MENU_ITEM_SingleWideOddEven", true, 1, 0, 2)
-    case SingleEvenOdd extends Mode("MENU_ITEM_SingleWideEvenOdd", true, 1, 1, 2)
+    case SingleOddEven extends Mode("MENU_ITEM_SingleWideOddEven", true, 1, 1, 2)
+    case SingleEvenOdd extends Mode("MENU_ITEM_SingleWideEvenOdd", true, 1, 0, 2)
     case Dual2 extends Mode("MENU_ITEM_Dual_2_columns", true, 2, -1, 1)
     case Dual1 extends Mode("MENU_ITEM_Dual_1_column", true, 2, -1, 1)
     case Dual1b extends Mode("Dual 1 column alt", false, 2, -1, 1)
@@ -204,15 +207,11 @@ object ReaderState {
   
   def ZOOM_STEP = 1.2
 
-  def INITIAL_STATE = new ReaderState(List(), Image, LeftToRight, Encoding.DEFAULT, true, List());
-
-  def apply(files:List[CBZImages], size:Size, direction:Direction, encoding:Encoding, showPageNumbers:Boolean, recentFiles:List[List[File]]): ReaderState =
-    new ReaderState(files, size, direction, encoding, showPageNumbers, recentFiles)
+  def INITIAL_STATE = new ReaderState(List(), Image, LeftToRight, Encoding.DEFAULT, true, List())
 
   def modeFrom(size: Int):Mode =
     if (size == 2) Dual2 else if (size == 1) Single else Blank
 
-  def processRecents(currentRecents:List[List[File]], newlyOpened:List[File]):List[List[File]] =
-    if(currentRecents.contains(newlyOpened)) currentRecents else
-      (newlyOpened::currentRecents).take(10)
+  def processRecents(recentStates:List[RecentState], newlyOpened:RecentState):List[RecentState] =
+    (newlyOpened::recentStates.filter(_ != newlyOpened)).take(10)
 }

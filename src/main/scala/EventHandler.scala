@@ -16,22 +16,22 @@
 
 package be.afront.reader
 
-import EventHandler.{SENSITIVITY, WHEEL_SENSITIVITY, handle, open, openSelectedFiles}
+import EventHandler.{FileSelection, SENSITIVITY, WHEEL_SENSITIVITY, handle, openFromUI, openSelectedFiles}
 import CBZImages.Direction.{LeftToRight, RightToLeft}
-import ReaderState.{Encoding, Help, Mode, Size}
+import ReaderState.{Encoding, Help, Mode, Size, modeFrom}
 import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single, SingleEvenOdd, SingleOddEven}
 import CBZImages.{Dimensions, FileCheck, checkFile}
 import ResourceLookup.MenuItemKey
-
 import MenuBuilder.{menuItem, modeMenuItems}
+
+import EventHandler.FileSelection.{Event, Restore, UI}
 
 import java.awt.desktop.{OpenFilesEvent, OpenFilesHandler}
 import java.awt.{FileDialog, Frame, Menu, MenuItem, Point}
-import java.awt.event.{ActionEvent, ActionListener, ItemEvent, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener, MouseWheelEvent, MouseWheelListener}
+import java.awt.event.{ActionEvent, ActionListener, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener, MouseWheelEvent, MouseWheelListener}
 import javax.swing.{JEditorPane, JFrame, JScrollPane, SwingUtilities}
 import java.awt.event.KeyEvent.{VK_2, VK_4, VK_6, VK_8, VK_ADD, VK_DOWN, VK_LEFT, VK_MINUS, VK_NUMPAD2, VK_NUMPAD4, VK_NUMPAD6, VK_NUMPAD8, VK_PLUS, VK_Q, VK_RIGHT, VK_SHIFT, VK_SUBTRACT, VK_UP}
 import java.awt.event.ItemEvent.SELECTED
-import javax.swing.WindowConstants.EXIT_ON_CLOSE
 import java.io.File
 import scala.List
 import scala.jdk.CollectionConverters.given
@@ -56,7 +56,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
 
   var state:ReaderState = initialState
 
-  var initialMouseDown: (p:Point, h:Double, v:Double) = null
+  private var initialMouseDown: (p:Point, h:Double, v:Double) = null
 
   init()
 
@@ -79,10 +79,10 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   }
 
   private def updateState(newState: ReaderState): Unit =
-    updateState(newState, false)
+    updateState(newState, false, false)
 
 
-  private def updateState(newState:ReaderState, afterOpen:Boolean): Unit = {
+  private def updateState(newState:ReaderState, afterOpen:Boolean, clearRecents:Boolean): Unit = {
     if(state.mode != newState.mode) {
       layoutChangeFor(newState)
       frame.revalidate()
@@ -90,7 +90,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
 
     val numFiles = newState.partialStates.size
 
-    if(afterOpen)
+    if(afterOpen || clearRecents)
       updateMenuBar(numFiles, newState)
 
     if ((afterOpen || state.direction != newState.direction) && numFiles > 0)
@@ -119,20 +119,32 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
 
     val recentMenu: Menu = menuBar.getMenu(0).getItem(1).asInstanceOf[Menu]
     recentMenu.removeAll()
-    newState.recentFiles.foreach(files => recentMenu.add(recentFileMenuItem(files)))
-    if(newState.recentFiles.nonEmpty)
+    val nonEmpty = newState.recentStates.nonEmpty
+
+    if(nonEmpty) {
+      newState.recentStates.foreach(state => recentMenu.add(recentFileMenuItem(state)))
       recentMenu.addSeparator()
-    recentMenu.add(menuItem(MenuItemKey.Clear)(using this, lookup))
+    }
+
+    val clear = menuItem(MenuItemKey.Clear, nonEmpty)(using this, lookup)
+    clear.addActionListener((e: ActionEvent) => clearRecentFiles())
+    recentMenu.add(clear)
   }
   
-  private def recentFileMenuItem(files:List[File]): MenuItem = {
-    val item = new RecentFileMenuItem(files)
-    item.addActionListener((e: ActionEvent) => openFiles(files))
+  private def recentFileMenuItem(state:RecentState): MenuItem = {
+    val item = new RecentFileMenuItem(state)
+    item.addActionListener((e: ActionEvent) => openFiles(state.files, Restore))
     item 
   }
 
-  private def updateStateForNewFiles(state: ReaderState):Unit = {
-    updateState(state, true)
+  private def updateStateForNewFiles(newState: ReaderState):Unit = {
+    val key = state.files
+    // move this logic to ReaderState
+    val index = newState.recentStates.indexWhere(_.files == key) // returns -1 if not found
+    val updateNewState =
+      if (index != -1) newState.copy(recentStates=newState.recentStates.updated(index, RecentState(key, state.toSave)))
+      else newState
+    updateState(updateNewState, true, false)
   }
 
   private def layoutChangeFor(newState:ReaderState): Unit = {
@@ -231,7 +243,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   override def actionPerformed(event: ActionEvent): Unit = {
     event.getActionCommand match {
       case MenuItemKey.Open.description => 
-        updateStateForNewFiles(open(state))
+        updateStateForNewFiles(openFromUI(state))
       case MenuItemKey.Info.description =>
         displayMetadata()
 
@@ -239,7 +251,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     }
   }
 
-  def displayMetadata(): Unit = {
+  private def displayMetadata(): Unit = {
     val dummyOwner = new Frame()
     dummyOwner.setVisible(false)
     val dialog = new InfoDialog(dummyOwner, state.partialStates.map(_.metadata).mkString("\n\n"))
@@ -281,19 +293,20 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     updateState(state.scrollVertical(e.getWheelRotation * WHEEL_SENSITIVITY))
 
   override
-  def openFiles(e: OpenFilesEvent): Unit = {
-    openFiles(e.getFiles.asScala.toList)
-  }
+  def openFiles(e: OpenFilesEvent): Unit =
+    openFiles(e.getFiles.asScala.toList, Event)
 
-  def openFiles(files:List[File]): Unit = {
+  private def clearRecentFiles():Unit =
+    updateState(state.copy(recentStates=List()), false, true)
+
+  // only for Event or Restore
+  private def openFiles(files:List[File], fileSelection:FileSelection): Unit = {
     if (files.nonEmpty) {
       val images = files.take(2).map(p => checkFile(p, state.encoding)).flatMap((checkResult:FileCheck) => checkResult match {
-        case (file, Failure(err)) => {
-          handle(file, err);None
-        }
+        case (file, Failure(err)) => handle(file, err);None
         case (file, Success(image)) => Some(image)
       })
-      updateStateForNewFiles(openSelectedFiles(state, images))
+      updateStateForNewFiles(openSelectedFiles(state, fileSelection, images))
     }
   }
 }
@@ -303,8 +316,11 @@ object EventHandler {
 
   val WHEEL_SENSITIVITY = 0.01
 
+  enum FileSelection {
+    case UI, Event, Restore
+  }
 
-  def selectFile(prompt: String, encoding:Encoding): Option[FileCheck] = {
+  private def selectFile(prompt: String, encoding:Encoding): Option[FileCheck] = {
     val dummyFrame = new Frame()
     dummyFrame.setSize(0, 0)
 
@@ -319,9 +335,9 @@ object EventHandler {
   }
 
   @annotation.tailrec
-  def selectFileLoop(prompt:String, encoding:Encoding): Option[CBZImages] = {
+  private def selectFileLoop(prompt:String, encoding:Encoding): Option[CBZImages] = {
     selectFile(prompt, encoding) match {
-      case Some((file, Failure(err))) => { handle(file, err); selectFileLoop(prompt, encoding) }
+      case Some((file, Failure(err))) => handle(file, err); selectFileLoop(prompt, encoding)
       case Some((file, Success(image))) => Some(image)
       case None => None
     }
@@ -337,10 +353,30 @@ object EventHandler {
     dummyOwner.dispose()
   }
 
-  def open(state:ReaderState): ReaderState =
-    openSelectedFiles(state,
+  def openFromUI(state:ReaderState): ReaderState =
+    openSelectedFiles(state, UI,
       List(selectFileLoop("select first file", state.encoding), selectFileLoop("select 2nd file", state.encoding)).flatten)
 
-  def openSelectedFiles(currentState:ReaderState, files:List[CBZImages]) : ReaderState =
-    new ReaderState(files, currentState)
+  def openSelectedFiles(currentState:ReaderState, fileSelection:FileSelection, files:List[CBZImages]) : ReaderState = {
+    val partialStates = files.map(f => PartialState(f))
+    if (fileSelection == Restore) {
+
+      val savedState = currentState.recentStates.filter(_.files == files.map(_.file)).head.save
+
+      new ReaderState (
+        savedState.mode,
+        partialStates.zip(savedState.currentPages).map((partialState,newPage) => partialState.setPage(newPage)),
+        savedState.zoomLevel,
+        savedState.hs,
+        savedState.vs,
+        savedState.size,
+        savedState.direction,
+        savedState.encoding,
+        savedState.showPageNumbers,
+        currentState.recentStates)
+
+    } else {
+      new ReaderState(partialStates, currentState)
+    }
+  }
 }
