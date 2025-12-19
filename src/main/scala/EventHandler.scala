@@ -23,7 +23,6 @@ import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single, SingleEvenOdd, Sin
 import CBZImages.{Dimensions, FileCheck, checkFile}
 import ResourceLookup.MenuItemKey
 import MenuBuilder.{menuItem, modeMenuItems}
-
 import EventHandler.FileSelection.{Event, Restore, UI}
 
 import java.awt.desktop.{OpenFilesEvent, OpenFilesHandler}
@@ -33,6 +32,7 @@ import javax.swing.{JEditorPane, JFrame, JScrollPane, SwingUtilities}
 import java.awt.event.KeyEvent.{VK_2, VK_4, VK_6, VK_8, VK_ADD, VK_DOWN, VK_LEFT, VK_MINUS, VK_NUMPAD2, VK_NUMPAD4, VK_NUMPAD6, VK_NUMPAD8, VK_PLUS, VK_Q, VK_RIGHT, VK_SHIFT, VK_SUBTRACT, VK_UP}
 import java.awt.event.ItemEvent.SELECTED
 import java.io.File
+import java.util.prefs.Preferences
 import scala.List
 import scala.jdk.CollectionConverters.given
 import scala.util.{Failure, Success}
@@ -119,18 +119,23 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
 
     val recentMenu: Menu = menuBar.getMenu(0).getItem(1).asInstanceOf[Menu]
     recentMenu.removeAll()
-    val nonEmpty = newState.recentStates.nonEmpty
+    fillRecentFileMenu(recentMenu, state.recentStates)
+  }
+
+  def fillRecentFileMenu(recentMenu: Menu, recentStates:List[RecentState]): Unit = {
+    val nonEmpty = recentStates.nonEmpty
 
     if(nonEmpty) {
-      newState.recentStates.foreach(state => recentMenu.add(recentFileMenuItem(state)))
+      recentStates.foreach(state => recentMenu.add(recentFileMenuItem(state)))
       recentMenu.addSeparator()
     }
 
     val clear = menuItem(MenuItemKey.Clear, nonEmpty)(using this, lookup)
     clear.addActionListener((e: ActionEvent) => clearRecentFiles())
+
     recentMenu.add(clear)
   }
-  
+
   private def recentFileMenuItem(state:RecentState): MenuItem = {
     val item = new RecentFileMenuItem(state)
     item.addActionListener((e: ActionEvent) => openFiles(state.files, Restore))
@@ -139,13 +144,21 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
 
   private def updateStateForNewFiles(newState: ReaderState):Unit = {
     val key = state.files
-    // move this logic to ReaderState
-    val index = newState.recentStates.indexWhere(_.files == key) // returns -1 if not found
+    val index = newState.recentStates.indexWhere(_.files == key)
     val updateNewState =
       if (index != -1) newState.copy(recentStates=newState.recentStates.updated(index, RecentState(key, state.toSave)))
       else newState
     updateState(updateNewState, true, false)
   }
+
+  private def clearRecentStates():Unit = {
+    updateState(state.copy(recentStates = List()), false, true)
+  }
+
+  def updatedRecentStates:List[RecentState] =
+    state.recentStates.map { rs =>
+      if (rs.files == state.files) RecentState(state.files, state.toSave) else rs
+    }
 
   private def layoutChangeFor(newState:ReaderState): Unit = {
     val oldMode = state.mode
@@ -246,6 +259,8 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
         updateStateForNewFiles(openFromUI(state))
       case MenuItemKey.Info.description =>
         displayMetadata()
+      case MenuItemKey.Clear.description =>
+        clearRecentStates()
 
       case _ => println("unimplemented command "+ event.getActionCommand)
     }
@@ -282,7 +297,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     editorPane.setPage(url)
     val scrollPane = new JScrollPane(editorPane)
 
-    val frame = new JFrame(help.description)
+    val frame = new JFrame(lookup(help))
     frame.add(scrollPane)
     frame.setSize(800, 600)
     frame.setVisible(true)
@@ -308,6 +323,11 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
       })
       updateStateForNewFiles(openSelectedFiles(state, fileSelection, images))
     }
+  }
+
+  def applicationWillEnd():Unit = {
+    val prefs: Preferences = Preferences.userNodeForPackage(classOf[DuoCBZReader.type ])
+    AppPreferences.saveObject(prefs, updatedRecentStates)
   }
 }
 

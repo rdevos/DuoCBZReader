@@ -23,11 +23,11 @@ import ReaderState.INITIAL_STATE
 import CBZImages.Dimensions
 import ResourceLookup.{Label, MessageKey}
 import CBZImages.PanelID.{LeftOrFront, RightOrBack}
-
 import MenuBuilder.initMenus
 
 import java.awt.desktop.{AboutEvent, AboutHandler}
 import java.util.Locale
+import java.util.prefs.Preferences
 
 object DuoCBZReader {
 
@@ -44,7 +44,10 @@ object DuoCBZReader {
 
     frame.setLayout(new GridLayout(1, 2))
 
-    val state:ReaderState = INITIAL_STATE
+    val prefs: Preferences = Preferences.userNodeForPackage(classOf[DuoCBZReader.type])
+    val state: ReaderState = AppPreferences.loadObject[List[RecentState]](prefs)
+      .fold(INITIAL_STATE)(recent => INITIAL_STATE.copy(recentStates = recent))
+
     val panel1 = new ImagePanel(state, LeftOrFront)
     val panel2 = new ImagePanel(state, RightOrBack)
 
@@ -52,7 +55,9 @@ object DuoCBZReader {
     val handler = new EventHandler(frame, panel1, panel2, state, availableScreenSize)
     given EventHandler = handler
 
-    frame.setMenuBar(initMenus(state.mode))
+    Runtime.getRuntime.addShutdownHook(new Thread(() => handler.applicationWillEnd()));
+
+    frame.setMenuBar(initMenus(state.mode, state.recentStates))
     frame.setVisible(true)
     frame.requestFocusInWindow()
     setupDesktop

@@ -25,9 +25,9 @@ import java.awt.{CheckboxMenuItem, Menu, MenuBar, MenuItem}
 
 object MenuBuilder {
 
-  def initMenus(mode: Mode)(using EventHandler, ResourceLookup): MenuBar = {
+  def initMenus(mode: Mode, recentStates:List[RecentState])(using EventHandler, ResourceLookup): MenuBar = {
     val menuBar = new MenuBar()
-    menuBar.add(fileMenu)
+    menuBar.add(fileMenu(recentStates))
     menuBar.add(modeMenu(mode))
     menuBar.add(sizeMenu)
     menuBar.add(optionsMenu)
@@ -57,12 +57,18 @@ object MenuBuilder {
     menuItem
   }
 
-  def fileMenu(using EventHandler, ResourceLookup): Menu =
+  def fileMenu(recentStates:List[RecentState])(using EventHandler, ResourceLookup): Menu =
     localizedMenu(MenuKey.File, List(
       menuItem(MenuItemKey.Open, true),
-      localizedMenu(MenuKey.Recent, List(menuItem(MenuItemKey.Clear, false))),
+      recentMenu(recentStates),
       menuItem(MenuItemKey.Info, true)))
-  
+
+  def recentMenu(recentStates:List[RecentState])(using handler:EventHandler, lookup:ResourceLookup): Menu = {
+    val menu = new Menu(lookup(MenuKey.Recent))
+    handler.fillRecentFileMenu(menu, recentStates)
+    menu
+  }
+
   def modeMenu(mode: Mode)(using EventHandler, ResourceLookup): Menu =
     localizedMenu(MenuKey.Mode, modeMenuItems(mode.numFiles))
 
