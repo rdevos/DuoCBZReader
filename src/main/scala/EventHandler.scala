@@ -31,7 +31,7 @@ import java.awt.desktop.{OpenFilesEvent, OpenFilesHandler}
 import java.awt.{FileDialog, Frame, Menu, MenuItem, Point}
 import java.awt.event.{ActionEvent, ActionListener, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener, MouseWheelEvent, MouseWheelListener}
 import javax.swing.{JEditorPane, JFrame, JScrollPane, SwingUtilities}
-import java.awt.event.KeyEvent.{VK_2, VK_4, VK_6, VK_8, VK_ADD, VK_DOWN, VK_LEFT, VK_MINUS, VK_NUMPAD2, VK_NUMPAD4, VK_NUMPAD6, VK_NUMPAD8, VK_PLUS, VK_Q, VK_RIGHT, VK_SHIFT, VK_SUBTRACT, VK_UP}
+import java.awt.event.KeyEvent.{VK_2, VK_4, VK_6, VK_8, VK_ADD, VK_DOWN, VK_LEFT, VK_MINUS, VK_NUMPAD2, VK_NUMPAD4, VK_NUMPAD6, VK_NUMPAD8, VK_PLUS, VK_Q, VK_RIGHT, VK_SHIFT, VK_SPACE, VK_SUBTRACT, VK_UP}
 import java.awt.event.ItemEvent.SELECTED
 import java.io.File
 import java.util.prefs.Preferences
@@ -126,7 +126,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
 
   def fillRecentFileMenu(recentMenu: Menu, recentStates:RecentStates): Unit = {
     val nonEmpty = recentStates.nonEmpty
-    
+
     if(nonEmpty) {
       recentStates.foreach(state => recentMenu.add(recentFileMenuItem(state)))
       recentMenu.addSeparator()
@@ -189,6 +189,8 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   
   private def stateMachine(keyCode: Int, pressed:Boolean): Option[ReaderState] = {
     if (pressed) keyCode match {
+      case VK_SPACE => ifNotBlank(Some(state.nextPage))
+
       case VK_RIGHT => ifNotBlank(Some(state.right))
       case VK_LEFT => ifNotBlank(Some(state.left))
       case VK_UP => ifNotBlank(Some(state.zoomIn))

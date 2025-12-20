@@ -55,6 +55,7 @@ pkgbuild --component DuoCBZReader.app \
          --install-location /Applications \
          --ownership recommended \
          --identifier be.afront.reader \
+         --scripts ../../scripts/macos \
          --version ${VERSION} \
          component.pkg
 
