@@ -59,7 +59,7 @@ object DuoCBZReader {
 
     Runtime.getRuntime.addShutdownHook(new Thread(() => handler.applicationWillEnd()));
 
-    frame.setMenuBar(initMenus(state.mode, state.recentStates))
+    frame.setMenuBar(initMenus(state))
     frame.setVisible(true)
     frame.requestFocusInWindow()
     setupDesktop

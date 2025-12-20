@@ -117,7 +117,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
 
     val modeMenu = menuBar.getMenu(1)
     modeMenu.removeAll()
-    modeMenuItems(count)(using this, lookup).foreach(modeMenu.add)
+    modeMenuItems(count, newState.mode)(using this, lookup).foreach(modeMenu.add)
 
     val recentMenu: Menu = menuBar.getMenu(0).getItem(1).asInstanceOf[Menu]
     recentMenu.removeAll()

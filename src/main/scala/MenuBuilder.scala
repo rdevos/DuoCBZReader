@@ -18,21 +18,20 @@ package be.afront.reader
 
 import state.ReaderState.{Encoding, Help, MenuItemSource, Mode, Size}
 import ResourceLookup.{MenuItemKey, MenuKey}
-
-import state.RecentStates
+import state.{ReaderState, RecentStates}
 
 import java.awt.event.{ActionEvent, ActionListener, ItemEvent}
 import java.awt.{CheckboxMenuItem, Menu, MenuBar, MenuItem}
 
 object MenuBuilder {
 
-  def initMenus(mode: Mode, recentStates:RecentStates)(using EventHandler, ResourceLookup): MenuBar = {
+  def initMenus(state: ReaderState)(using EventHandler, ResourceLookup): MenuBar = {
     val menuBar = new MenuBar()
-    menuBar.add(fileMenu(recentStates))
-    menuBar.add(modeMenu(mode))
-    menuBar.add(sizeMenu)
+    menuBar.add(fileMenu(state.recentStates))
+    menuBar.add(modeMenu(state.mode))
+    menuBar.add(sizeMenu(state.size))
     menuBar.add(optionsMenu)
-    menuBar.add(encodingMenu)
+    menuBar.add(encodingMenu(state.encoding))
     menuBar.add(helpMenu)
     menuBar
   }
@@ -71,18 +70,20 @@ object MenuBuilder {
   }
 
   def modeMenu(mode: Mode)(using EventHandler, ResourceLookup): Menu =
-    localizedMenu(MenuKey.Mode, modeMenuItems(mode.numFiles))
+    localizedMenu(MenuKey.Mode, modeMenuItems(mode.numFiles, mode))
 
-  def sizeMenu(using EventHandler, ResourceLookup): Menu =
-    localizedMenu(MenuKey.Size, menuItemsForEnumeratedMenu(Size.values.toList, (handler, tag) => handler.changeSize(tag)))
+  def sizeMenu(size:Size)(using EventHandler, ResourceLookup): Menu =
+    localizedMenu(MenuKey.Size,
+      menuItemsForEnumeratedMenu(Size.values.toList, (handler, tag) => handler.changeSize(tag), _ != size))
 
   def optionsMenu(using handler: EventHandler, lookup: ResourceLookup): Menu =
     localizedMenu(MenuKey.Options, List(
       checkBoxMenu(MenuItemKey.RightToLeft, false, (a, b) => a.directionChange(b)),
       checkBoxMenu(MenuItemKey.PageNumbers, true, (a, b) => a.togglePageNumbers(b))))
 
-  def encodingMenu(using EventHandler, ResourceLookup): Menu =
-    localizedMenu(MenuKey.Encoding, menuItemsForEnumeratedMenu(Encoding.values.toList, (handler, tag) => handler.changeEncoding(tag)))
+  def encodingMenu(encoding:Encoding)(using EventHandler, ResourceLookup): Menu =
+    localizedMenu(MenuKey.Encoding,
+      menuItemsForEnumeratedMenu(Encoding.values.toList, (handler, tag) => handler.changeEncoding(tag), _ != encoding))
 
   def helpMenu(using EventHandler, ResourceLookup): Menu =
     localizedMenu(MenuKey.Help, allMenuItems(Help.values.toList, (handler, tag) => handler.displayHelp(tag)))
@@ -102,25 +103,29 @@ object MenuBuilder {
   }
 
   def menuItemsForEnumeratedMenu[K <: MenuItemSource]
-  (itemValues: List[K], action: (EventHandler, K) => Unit)
-  (using handler: EventHandler, lookup: ResourceLookup): List[MenuItem] = {
-    val items = itemValues.filter(_.selectable).map(q => new EnumeratedMenuItem(q, lookup(q)))
-    if (items.nonEmpty)
-      items.head.setEnabled(false)
-    val listener = new EnumeratedValueChangeListener(handler, action)
-    items.foreach(item => item.addActionListener(listener))
-    items
-  }
+    (itemValues: List[K], action: (EventHandler, K) => Unit, enabled:K => Boolean)
+    (using handler: EventHandler, lookup: ResourceLookup): List[MenuItem] =
+      val items = itemValues.filter(_.selectable).map(k => menuItemForEnumeratedMenu(k, enabled(k)))
+      val listener = new EnumeratedValueChangeListener(handler, action)
+      items.foreach(item => item.addActionListener(listener))
+      items
 
-  def modeMenuItems(count: Int)(using EventHandler, ResourceLookup): List[MenuItem] =
+  def menuItemForEnumeratedMenu[K <: MenuItemSource]
+    (itemValue:K, enabled:Boolean)
+    (using lookup: ResourceLookup): EnumeratedMenuItem[K] =
+      val item = new EnumeratedMenuItem(itemValue, lookup(itemValue))
+      item.setEnabled(enabled)
+      item
+
+  def modeMenuItems(count: Int, mode:Mode)(using EventHandler, ResourceLookup): List[MenuItem] =
     menuItemsForEnumeratedMenu[Mode](
       Mode.values.toList.filter(item => item.numFiles == count),
-      (handler, tag) => handler.changeMode(tag))
+      (handler, tag) => handler.changeMode(tag), _ != mode)
 
   def allMenuItems[K <: MenuItemSource]
   (itemValues: List[K], action: (EventHandler, K) => Unit)
   (using handler: EventHandler, lookup: ResourceLookup): List[MenuItem] = {
-    val items = Help.values.toList.map(q => new EnumeratedMenuItem(q, lookup(q)))
+    val items = itemValues.map(k => new EnumeratedMenuItem(k, lookup(k)))
     val actionListener: ActionListener = (e: ActionEvent) =>
       action(handler, e.getSource.asInstanceOf[EnumeratedMenuItem[K]].tag)
     items.foreach(item => item.addActionListener(actionListener))
