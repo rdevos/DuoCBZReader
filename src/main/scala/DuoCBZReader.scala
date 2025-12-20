@@ -19,11 +19,13 @@ package be.afront.reader
 import java.awt.{Desktop, Dimension, GraphicsEnvironment, GridLayout, Rectangle}
 import javax.swing.{ImageIcon, JFrame, JOptionPane}
 import javax.swing.WindowConstants.EXIT_ON_CLOSE
-import ReaderState.INITIAL_STATE
+import state.ReaderState.INITIAL_STATE
 import CBZImages.Dimensions
 import ResourceLookup.{Label, MessageKey}
 import CBZImages.PanelID.{LeftOrFront, RightOrBack}
 import MenuBuilder.initMenus
+
+import state.{ReaderState,RecentStates}
 
 import java.awt.desktop.{AboutEvent, AboutHandler}
 import java.util.Locale
@@ -45,7 +47,7 @@ object DuoCBZReader {
     frame.setLayout(new GridLayout(1, 2))
 
     val prefs: Preferences = Preferences.userNodeForPackage(classOf[DuoCBZReader.type])
-    val state: ReaderState = AppPreferences.loadObject[List[RecentState]](prefs)
+    val state: ReaderState = AppPreferences.loadObject[RecentStates](prefs)
       .fold(INITIAL_STATE)(recent => INITIAL_STATE.copy(recentStates = recent))
 
     val panel1 = new ImagePanel(state, LeftOrFront)

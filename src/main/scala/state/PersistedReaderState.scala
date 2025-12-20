@@ -15,15 +15,20 @@
 */
 
 package be.afront.reader
+package state
 
-import java.io.File
+import CBZImages.Direction
+import state.ReaderState.{Encoding, Mode, Size}
 
-case class RecentState(files: List[File], save: PersistedReaderState) {
 
-  override def equals(obj: Any): Boolean = obj match {
-    case that: RecentState => this.files == that.files
-    case _ => false
-  }
-
-  override def hashCode(): Int = files.hashCode()
+case class PersistedReaderState(
+     mode: Mode,
+     currentPages: List[Int],
+     zoomLevel: Int,
+     hs: Double,
+     vs: Double,
+     size: Size,
+     direction:Direction,
+     encoding: Encoding,
+     showPageNumbers:Boolean) {
 }

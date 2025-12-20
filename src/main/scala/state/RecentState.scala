@@ -15,9 +15,16 @@
 */
 
 package be.afront.reader
+package state
 
-import state.ReaderState.MenuItemSource
+import java.io.File
 
-import java.awt.MenuItem
+case class RecentState(files: List[File], save: PersistedReaderState) {
 
-class EnumeratedMenuItem[K <: MenuItemSource](val tag: K, label:String) extends MenuItem(label)
+  override def equals(obj: Any): Boolean = obj match {
+    case that: RecentState => this.files == that.files
+    case _ => false
+  }
+
+  override def hashCode(): Int = files.hashCode()
+}

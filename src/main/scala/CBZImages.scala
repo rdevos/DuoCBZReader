@@ -18,9 +18,9 @@ package be.afront.reader
 
 import CBZImages.{Dimensions, Direction, Part, getDimensions}
 import CBZImages.Part.{First, Latter}
-import ReaderState.Encoding
+import state.ReaderState.Encoding
 
-import be.afront.reader.CBZImages.Direction.{LeftToRight, RightToLeft}
+import CBZImages.Direction.{LeftToRight, RightToLeft}
 
 import java.awt.image.BufferedImage
 import org.apache.commons.compress.archivers.zip.{ZipArchiveEntry, ZipFile}

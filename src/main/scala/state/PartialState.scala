@@ -1,5 +1,3 @@
-package be.afront.reader
-
 /*
   Copyright 2025 Paul Janssens - All rights reserved
 
@@ -16,10 +14,13 @@ package be.afront.reader
   limitations under the License.
 */
 
+package be.afront.reader
+package state
+
 import CBZImages.{Direction, PanelID}
-import ReaderState.Mode
-import ReaderState.Mode.{SingleEvenOdd, SingleOddEven}
-import PartialState.pageForPanel
+import state.PartialState.pageForPanel
+import state.ReaderState.Mode
+import state.ReaderState.Mode.{SingleEvenOdd, SingleOddEven}
 
 import java.awt.image.BufferedImage
 import java.io.File

@@ -15,13 +15,15 @@
 */
 
 package be.afront.reader
+package state
 
-import ReaderState.{Encoding, INITIAL_STATE, Mode, SCROLL_STEP, Size, ZOOM_STEP, modeFrom, processRecents}
-import CBZImages.{Direction, PanelID}
 import CBZImages.Direction.LeftToRight
-import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single, SingleEvenOdd, SingleOddEven}
-import ReaderState.Size.Image
-import PartialState.pageForPanel
+import CBZImages.{Direction, PanelID}
+import RecentStates.EMPTY
+import state.PartialState.pageForPanel
+import state.ReaderState.Mode.*
+import state.ReaderState.Size.Image
+import state.ReaderState.*
 
 import java.awt.image.BufferedImage
 import java.io.File
@@ -40,18 +42,18 @@ case class ReaderState(
    direction:Direction,
    encoding: Encoding,
    showPageNumbers:Boolean,
-   recentStates:List[RecentState]
+   recentStates:RecentStates
 ) extends AutoCloseable {
 
   private def checkScroll(pos: Double): Double =
     math.max(0.0, math.min(1.0, pos))
 
-  private def this(partialStates: List[PartialState], size:Size, direction:Direction, encoding:Encoding, showPageNumbers:Boolean, recentStates:List[RecentState]) =
+  private def this(partialStates: List[PartialState], size:Size, direction:Direction, encoding:Encoding, showPageNumbers:Boolean, recentStates:RecentStates) =
     this(modeFrom(partialStates.size), partialStates, 0, 0.5, 0.5, size, direction, encoding,  showPageNumbers, recentStates)
 
   def this(partialStates: List[PartialState], currentState:ReaderState) =
     this(partialStates, currentState.size, currentState.direction, currentState.encoding, currentState.showPageNumbers,
-      processRecents(currentState.recentStates, RecentState(partialStates.map(_.images.file), INITIAL_STATE.toSave)))
+      currentState.recentStates.filesWereOpened(RecentState(partialStates.map(_.images.file), INITIAL_STATE.toSave)))
 
   def zoomFactor:Double = pow(ZOOM_STEP, zoomLevel)
 
@@ -207,11 +209,8 @@ object ReaderState {
   
   def ZOOM_STEP = 1.2
 
-  def INITIAL_STATE = new ReaderState(List(), Image, LeftToRight, Encoding.DEFAULT, true, List())
+  def INITIAL_STATE = new ReaderState(List(), Image, LeftToRight, Encoding.DEFAULT, true, EMPTY)
 
   def modeFrom(size: Int):Mode =
     if (size == 2) Dual2 else if (size == 1) Single else Blank
-
-  def processRecents(recentStates:List[RecentState], newlyOpened:RecentState):List[RecentState] =
-    (newlyOpened::recentStates.filter(_ != newlyOpened)).take(10)
 }

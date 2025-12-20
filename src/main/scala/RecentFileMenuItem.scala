@@ -16,7 +16,8 @@
 
 package be.afront.reader
 
+import state.RecentState
+
 import java.awt.MenuItem
-import java.io.File
 
 class RecentFileMenuItem(val state: RecentState) extends MenuItem(state.files.map(_.getName).mkString(" / "))

@@ -16,16 +16,17 @@
 
 package be.afront.reader
 
-import ReaderState.{Encoding, Help, MenuItemSource, Mode, Size}
-
+import state.ReaderState.{Encoding, Help, MenuItemSource, Mode, Size}
 import ResourceLookup.{MenuItemKey, MenuKey}
+
+import state.RecentStates
 
 import java.awt.event.{ActionEvent, ActionListener, ItemEvent}
 import java.awt.{CheckboxMenuItem, Menu, MenuBar, MenuItem}
 
 object MenuBuilder {
 
-  def initMenus(mode: Mode, recentStates:List[RecentState])(using EventHandler, ResourceLookup): MenuBar = {
+  def initMenus(mode: Mode, recentStates:RecentStates)(using EventHandler, ResourceLookup): MenuBar = {
     val menuBar = new MenuBar()
     menuBar.add(fileMenu(recentStates))
     menuBar.add(modeMenu(mode))
@@ -57,13 +58,13 @@ object MenuBuilder {
     menuItem
   }
 
-  def fileMenu(recentStates:List[RecentState])(using EventHandler, ResourceLookup): Menu =
+  def fileMenu(recentStates:RecentStates)(using EventHandler, ResourceLookup): Menu =
     localizedMenu(MenuKey.File, List(
       menuItem(MenuItemKey.Open, true),
       recentMenu(recentStates),
       menuItem(MenuItemKey.Info, true)))
 
-  def recentMenu(recentStates:List[RecentState])(using handler:EventHandler, lookup:ResourceLookup): Menu = {
+  def recentMenu(recentStates:RecentStates)(using handler:EventHandler, lookup:ResourceLookup): Menu = {
     val menu = new Menu(lookup(MenuKey.Recent))
     handler.fillRecentFileMenu(menu, recentStates)
     menu

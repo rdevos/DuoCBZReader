@@ -17,9 +17,10 @@
 package be.afront.reader
 
 import ImagePanel.indicatorFont
-import ReaderState.Size.{Actual, Width}
+import state.ReaderState.Size.{Actual, Width}
 
-import be.afront.reader.CBZImages.PanelID
+import CBZImages.PanelID
+import state.ReaderState
 
 import java.awt.{Color, Font, Graphics, Graphics2D}
 import java.awt.RenderingHints.{KEY_INTERPOLATION, VALUE_INTERPOLATION_BILINEAR}

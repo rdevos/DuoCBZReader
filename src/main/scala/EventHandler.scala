@@ -18,12 +18,14 @@ package be.afront.reader
 
 import EventHandler.{FileSelection, SENSITIVITY, WHEEL_SENSITIVITY, handle, openFromUI, openSelectedFiles}
 import CBZImages.Direction.{LeftToRight, RightToLeft}
-import ReaderState.{Encoding, Help, Mode, Size, modeFrom}
-import ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single, SingleEvenOdd, SingleOddEven}
+import state.ReaderState.{Encoding, Help, Mode, Size, modeFrom}
+import state.ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single, SingleEvenOdd, SingleOddEven}
 import CBZImages.{Dimensions, FileCheck, checkFile}
 import ResourceLookup.MenuItemKey
 import MenuBuilder.{menuItem, modeMenuItems}
 import EventHandler.FileSelection.{Event, Restore, UI}
+import state.RecentStates.EMPTY
+import state.{PartialState, ReaderState, RecentState, RecentStates}
 
 import java.awt.desktop.{OpenFilesEvent, OpenFilesHandler}
 import java.awt.{FileDialog, Frame, Menu, MenuItem, Point}
@@ -122,9 +124,9 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     fillRecentFileMenu(recentMenu, state.recentStates)
   }
 
-  def fillRecentFileMenu(recentMenu: Menu, recentStates:List[RecentState]): Unit = {
+  def fillRecentFileMenu(recentMenu: Menu, recentStates:RecentStates): Unit = {
     val nonEmpty = recentStates.nonEmpty
-
+    
     if(nonEmpty) {
       recentStates.foreach(state => recentMenu.add(recentFileMenuItem(state)))
       recentMenu.addSeparator()
@@ -143,22 +145,16 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   }
 
   private def updateStateForNewFiles(newState: ReaderState):Unit = {
-    val key = state.files
-    val index = newState.recentStates.indexWhere(_.files == key)
-    val updateNewState =
-      if (index != -1) newState.copy(recentStates=newState.recentStates.updated(index, RecentState(key, state.toSave)))
-      else newState
+    val updateNewState = newState.copy(recentStates=newState.recentStates.updateWhere(state.files, state.toSave))
     updateState(updateNewState, true, false)
   }
 
   private def clearRecentStates():Unit = {
-    updateState(state.copy(recentStates = List()), false, true)
+    updateState(state.copy(recentStates = state.recentStates.clear), false, true)
   }
 
-  def updatedRecentStates:List[RecentState] =
-    state.recentStates.map { rs =>
-      if (rs.files == state.files) RecentState(state.files, state.toSave) else rs
-    }
+  def updatedRecentStates:RecentStates =
+    state.recentStates.updateWhere(state.files, state.toSave)
 
   private def layoutChangeFor(newState:ReaderState): Unit = {
     val oldMode = state.mode
@@ -312,7 +308,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     openFiles(e.getFiles.asScala.toList, Event)
 
   private def clearRecentFiles():Unit =
-    updateState(state.copy(recentStates=List()), false, true)
+    updateState(state.copy(recentStates=EMPTY), false, true)
 
   // only for Event or Restore
   private def openFiles(files:List[File], fileSelection:FileSelection): Unit = {
@@ -381,7 +377,7 @@ object EventHandler {
     val partialStates = files.map(f => PartialState(f))
     if (fileSelection == Restore) {
 
-      val savedState = currentState.recentStates.filter(_.files == files.map(_.file)).head.save
+      val savedState = currentState.recentStates.states.filter(_.files == files.map(_.file)).head.save
 
       new ReaderState (
         savedState.mode,
