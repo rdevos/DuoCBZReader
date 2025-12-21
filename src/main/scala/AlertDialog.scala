@@ -33,7 +33,7 @@ class AlertDialog(owner: Frame, line1: String, line2:String) extends Dialog(owne
     }
   })
 
-  setSize(550, 100)
+  setSize(650, 100)
 
   override def paint(g: Graphics): Unit = {
     super.paint(g)

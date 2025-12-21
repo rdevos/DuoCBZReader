@@ -1,0 +1,41 @@
+#!/bin/bash
+
+APP_PATH="/Applications/DuoCBZReader.app"
+BIN_PATH="/Applications/DuoCBZReader.app/Contents/MacOS/DuoCBZReader"
+
+echo "Removing quarantine attributes..."
+/usr/bin/xattr -cr "$APP_PATH"
+
+echo "Applying basic ad-hoc signing..."
+/usr/bin/codesign --force --deep --sign - "$APP_PATH"
+
+echo "Verifying..."
+if /usr/bin/codesign --verify --deep --strict --verbose=2 "$APP_PATH" 2>/dev/null; then
+  echo "Basic ad-hoc signing succeeded."
+else
+  echo "Basic signing failed, now signing using entitlements."
+
+  ENT_PLIST="/tmp/entitlements_$$.plist"
+  /usr/bin/codesign -d --entitlements - --xml "$BIN_PATH" > "$ENT_PLIST"
+
+  if [[ ! -s "$ENT_PLIST" ]]; then
+    echo "Error: Failed to extract entitlements."
+    rm -f "$ENT_PLIST"
+    exit 1
+  fi
+
+  /usr/bin/codesign -f -s - --entitlements "$ENT_PLIST" "$APP_PATH"
+  rm -f "$ENT_PLIST"
+
+  echo "Re-signing with preserved entitlements complete."
+
+  if /usr/bin/codesign --verify --deep --strict --verbose=2 "$APP_PATH" 2>/dev/null; then
+    echo "Final signature passed strict verification."
+  else
+    echo "Warning: Final signature still fails strict verification."
+  fi
+fi
+
+echo "Post-install completed"
+
+exit 0

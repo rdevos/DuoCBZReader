@@ -61,7 +61,7 @@ case class ReaderState(
     partialStates.map(_.file)
     
   def toSave:PersistedReaderState =
-    PersistedReaderState(mode, partialStates.map(_.currentPage), zoomLevel, hs, vs, size, direction, encoding, showPageNumbers)
+    PersistedReaderState(mode, partialStates.map(_.currentPage), zoomLevel, hs, vs, size, direction, showPageNumbers)
 
   def partialNames:String =
     (if(direction ==LeftToRight) partialStates else partialStates.reverse)

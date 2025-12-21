@@ -22,13 +22,13 @@ import state.ReaderState.{Encoding, Help, Mode, Size, modeFrom}
 import state.ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single, SingleEvenOdd, SingleOddEven}
 import CBZImages.{Dimensions, FileCheck, checkFile}
 import ResourceLookup.MenuItemKey
-import MenuBuilder.{menuItem, modeMenuItems}
+import MenuBuilder.{alterMenu, menuItem, menuItemsForEnumeratedMenu, modeMenuItems}
 import EventHandler.FileSelection.{Event, Restore, UI}
 import state.RecentStates.EMPTY
 import state.{PartialState, ReaderState, RecentState, RecentStates}
 
 import java.awt.desktop.{OpenFilesEvent, OpenFilesHandler}
-import java.awt.{FileDialog, Frame, Menu, MenuItem, Point}
+import java.awt.{CheckboxMenuItem, FileDialog, Frame, Menu, MenuItem, Point}
 import java.awt.event.{ActionEvent, ActionListener, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener, MouseWheelEvent, MouseWheelListener}
 import javax.swing.{JEditorPane, JFrame, JScrollPane, SwingUtilities}
 import java.awt.event.KeyEvent.{VK_2, VK_4, VK_6, VK_8, VK_ADD, VK_DOWN, VK_LEFT, VK_MINUS, VK_NUMPAD2, VK_NUMPAD4, VK_NUMPAD6, VK_NUMPAD8, VK_PLUS, VK_Q, VK_RIGHT, VK_SHIFT, VK_SPACE, VK_SUBTRACT, VK_UP}
@@ -115,13 +115,22 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   private def updateMenuBar(count:Int, newState:ReaderState)(using lookup: ResourceLookup):Unit = {
     val menuBar = frame.getMenuBar
 
+    val recentMenu: Menu = menuBar.getMenu(0).getItem(1).asInstanceOf[Menu]
+    recentMenu.removeAll()
+    fillRecentFileMenu(recentMenu, state.recentStates)
+
     val modeMenu = menuBar.getMenu(1)
     modeMenu.removeAll()
     modeMenuItems(count, newState.mode)(using this, lookup).foreach(modeMenu.add)
 
-    val recentMenu: Menu = menuBar.getMenu(0).getItem(1).asInstanceOf[Menu]
-    recentMenu.removeAll()
-    fillRecentFileMenu(recentMenu, state.recentStates)
+    val sizeMenu = menuBar.getMenu(2)
+    alterMenu(sizeMenu, newState.size)
+
+    val optionsMenu = menuBar.getMenu(3)
+    val rtol = optionsMenu.getItem(0).asInstanceOf[CheckboxMenuItem]
+    rtol.setState(newState.direction == RightToLeft)
+    val pgn = optionsMenu.getItem(1).asInstanceOf[CheckboxMenuItem]
+    pgn.setState(newState.showPageNumbers)
   }
 
   def fillRecentFileMenu(recentMenu: Menu, recentStates:RecentStates): Unit = {
@@ -365,7 +374,12 @@ object EventHandler {
     val dummyOwner = new Frame()
     dummyOwner.setVisible(false)
     val simpleFileName = file.getName
-    val alert = new AlertDialog(dummyOwner, s"Failed to open \"$simpleFileName\"", err.getMessage)
+    val line1 =
+      if(err.getCause.isInstanceOf[java.nio.charset.MalformedInputException])
+        s"Failed to open \"$simpleFileName\", most likely the current encoding is incorrect" else
+        s"Failed to open \"$simpleFileName\""
+
+    val alert = new AlertDialog(dummyOwner, line1, err.getMessage)
     alert.setLocationRelativeTo(null)
     alert.setVisible(true)
     dummyOwner.dispose()
@@ -389,7 +403,7 @@ object EventHandler {
         savedState.vs,
         savedState.size,
         savedState.direction,
-        savedState.encoding,
+        currentState.encoding,
         savedState.showPageNumbers,
         currentState.recentStates)
 

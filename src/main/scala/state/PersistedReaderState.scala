@@ -29,6 +29,5 @@ case class PersistedReaderState(
      vs: Double,
      size: Size,
      direction:Direction,
-     encoding: Encoding,
      showPageNumbers:Boolean) {
 }

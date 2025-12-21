@@ -2,7 +2,7 @@
 
 rm -rf custom-jre
 
-VERSION=1.0.9
+VERSION=1.0.10
 
 JDK_MAJOR=$(jlink --version | cut -d '.' -f 1)
 

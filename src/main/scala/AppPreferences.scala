@@ -22,7 +22,7 @@ import scala.util.{Try, Using}
 
 object AppPreferences {
 
-  private def KEY = "BULK"
+  private def KEY = "BULK_v2"
   
   def saveObject(prefs: Preferences, obj: Serializable): Unit = {
     Using(new ByteArrayOutputStream()) { baos =>

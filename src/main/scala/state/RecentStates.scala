@@ -30,7 +30,7 @@ case class RecentStates(states:List[RecentState]) extends Serializable {
     states.nonEmpty
 
   def filesWereOpened(newlyOpened: RecentState):RecentStates = 
-    RecentStates((newlyOpened :: states.filter(_ != newlyOpened)).take(10))
+    if(newlyOpened.isEmpty) this else RecentStates((newlyOpened :: states.filter(_ != newlyOpened)).take(10))
 
   def foreach(f:RecentState => Unit):Unit =
     states.foreach(f)

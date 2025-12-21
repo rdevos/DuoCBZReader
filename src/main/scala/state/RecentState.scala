@@ -21,6 +21,9 @@ import java.io.File
 
 case class RecentState(files: List[File], save: PersistedReaderState) {
 
+  def isEmpty:Boolean =
+    files.isEmpty
+    
   override def equals(obj: Any): Boolean = obj match {
     case that: RecentState => this.files == that.files
     case _ => false

@@ -88,16 +88,19 @@ object MenuBuilder {
   def helpMenu(using EventHandler, ResourceLookup): Menu =
     localizedMenu(MenuKey.Help, allMenuItems(Help.values.toList, (handler, tag) => handler.displayHelp(tag)))
 
+  def alterMenu[K <: MenuItemSource](menu:Menu, selected:K):Unit = {
+    for (i <- 0 until menu.getItemCount) {
+      val item = menu.getItem(i)
+      item.setEnabled(item.asInstanceOf[EnumeratedMenuItem[K]].tag != selected)
+    }
+  }
+  
   private class EnumeratedValueChangeListener[K <: MenuItemSource](handler: EventHandler, action: (EventHandler, K) => Unit) extends ActionListener {
 
     override
     def actionPerformed(e: ActionEvent): Unit = {
       val selected: EnumeratedMenuItem[K] = e.getSource.asInstanceOf[EnumeratedMenuItem[K]]
-      val menu = selected.getParent.asInstanceOf[Menu]
-      for (i <- 0 until menu.getItemCount) {
-        val item = menu.getItem(i)
-        item.setEnabled(item != selected)
-      }
+      alterMenu(selected.getParent.asInstanceOf[Menu], selected.tag)
       action(handler, selected.tag)
     }
   }
