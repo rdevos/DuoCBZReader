@@ -62,7 +62,12 @@ object DuoCBZReader {
     frame.setMenuBar(initMenus(state))
     frame.setVisible(true)
     frame.requestFocusInWindow()
+
     setupDesktop
+
+    // add a switch for this
+    state.recentStates.states.headOption
+      .foreach(s => handler.restore(s))
   }
   
   private def screenSize: Dimensions = {

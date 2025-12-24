@@ -147,9 +147,13 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     recentMenu.add(clear)
   }
 
+  def restore(state:RecentState):Unit = {
+    openFiles(state.files, Restore)  
+  }
+  
   private def recentFileMenuItem(state:RecentState): MenuItem = {
     val item = new RecentFileMenuItem(state)
-    item.addActionListener((e: ActionEvent) => openFiles(state.files, Restore))
+    item.addActionListener((e: ActionEvent) => restore(state))
     item 
   }
 
