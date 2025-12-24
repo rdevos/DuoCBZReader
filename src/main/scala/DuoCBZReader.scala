@@ -25,11 +25,10 @@ import ResourceLookup.{Label, MessageKey}
 import CBZImages.PanelID.{LeftOrFront, RightOrBack}
 import MenuBuilder.initMenus
 
-import state.{ReaderState,RecentStates}
+import state.ReaderState
 
 import java.awt.desktop.{AboutEvent, AboutHandler}
 import java.util.Locale
-import java.util.prefs.Preferences
 
 object DuoCBZReader {
 
@@ -46,9 +45,8 @@ object DuoCBZReader {
 
     frame.setLayout(new GridLayout(1, 2))
 
-    val prefs: Preferences = Preferences.userNodeForPackage(classOf[DuoCBZReader.type])
-    val state: ReaderState = AppPreferences.loadObject[RecentStates](prefs)
-      .fold(INITIAL_STATE)(recent => INITIAL_STATE.copy(recentStates = recent))
+    val state: ReaderState = AppPreferences.load
+      .fold(INITIAL_STATE)(loaded => INITIAL_STATE.copy(recentStates = loaded.recentStates, preferences = loaded.preferences))
 
     val panel1 = new ImagePanel(state, LeftOrFront)
     val panel2 = new ImagePanel(state, RightOrBack)
@@ -60,14 +58,15 @@ object DuoCBZReader {
     Runtime.getRuntime.addShutdownHook(new Thread(() => handler.applicationWillEnd()));
 
     frame.setMenuBar(initMenus(state))
+
+    if(state.preferences.autoRestore)
+      state.recentStates.states.headOption
+        .foreach(s => handler.restore(s))
+
     frame.setVisible(true)
     frame.requestFocusInWindow()
 
     setupDesktop
-
-    // add a switch for this
-    state.recentStates.states.headOption
-      .foreach(s => handler.restore(s))
   }
   
   private def screenSize: Dimensions = {

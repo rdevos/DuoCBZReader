@@ -25,11 +25,13 @@ import ResourceLookup.MenuItemKey
 import MenuBuilder.{alterMenu, menuItem, menuItemsForEnumeratedMenu, modeMenuItems}
 import EventHandler.FileSelection.{Event, Restore, UI}
 import state.RecentStates.EMPTY
-import state.{PartialState, ReaderState, RecentState, RecentStates}
+import state.{AggregatePersistedState, PartialState, ReaderState, RecentState, RecentStates}
+
+import be.afront.reader.state.Preferences.PreferenceKey
 
 import java.awt.desktop.{OpenFilesEvent, OpenFilesHandler}
 import java.awt.{CheckboxMenuItem, FileDialog, Frame, Menu, MenuItem, Point}
-import java.awt.event.{ActionEvent, ActionListener, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener, MouseWheelEvent, MouseWheelListener}
+import java.awt.event.{ActionEvent, ActionListener, ItemEvent, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener, MouseWheelEvent, MouseWheelListener}
 import javax.swing.{JEditorPane, JFrame, JScrollPane, SwingUtilities}
 import java.awt.event.KeyEvent.{VK_2, VK_4, VK_6, VK_8, VK_ADD, VK_DOWN, VK_LEFT, VK_MINUS, VK_NUMPAD2, VK_NUMPAD4, VK_NUMPAD6, VK_NUMPAD8, VK_PLUS, VK_Q, VK_RIGHT, VK_SHIFT, VK_SPACE, VK_SUBTRACT, VK_UP}
 import java.awt.event.ItemEvent.SELECTED
@@ -126,7 +128,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     val sizeMenu = menuBar.getMenu(2)
     alterMenu(sizeMenu, newState.size)
 
-    val optionsMenu = menuBar.getMenu(3)
+    val optionsMenu = menuBar.getMenu(4)
     val rtol = optionsMenu.getItem(0).asInstanceOf[CheckboxMenuItem]
     rtol.setState(newState.direction == RightToLeft)
     val pgn = optionsMenu.getItem(1).asInstanceOf[CheckboxMenuItem]
@@ -148,9 +150,9 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   }
 
   def restore(state:RecentState):Unit = {
-    openFiles(state.files, Restore)  
+    openFiles(state.files, Restore)
   }
-  
+
   private def recentFileMenuItem(state:RecentState): MenuItem = {
     val item = new RecentFileMenuItem(state)
     item.addActionListener((e: ActionEvent) => restore(state))
@@ -301,6 +303,9 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   def changeEncoding(newEncoding: Encoding): Unit =
     updateState(state.setEncoding(newEncoding))
 
+  def changePreference(key:PreferenceKey, newValue:Int):Unit =
+    updateState(state.changePreference(key, newValue == SELECTED))
+
   def displayHelp(help: Help): Unit = {
     val editorPane = new JEditorPane()
     editorPane.setContentType("text/html")
@@ -336,10 +341,8 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     }
   }
 
-  def applicationWillEnd():Unit = {
-    val prefs: Preferences = Preferences.userNodeForPackage(classOf[DuoCBZReader.type ])
-    AppPreferences.saveObject(prefs, updatedRecentStates)
-  }
+  def applicationWillEnd():Unit =
+    AppPreferences.save(AggregatePersistedState(state.preferences, updatedRecentStates))
 }
 
 object EventHandler {
@@ -409,6 +412,7 @@ object EventHandler {
         savedState.direction,
         currentState.encoding,
         savedState.showPageNumbers,
+        currentState.preferences,
         currentState.recentStates)
 
     } else {

@@ -16,13 +16,15 @@
 
 package be.afront.reader
 
+import state.AggregatePersistedState
+
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
 import java.util.prefs.Preferences
 import scala.util.{Try, Using}
 
 object AppPreferences {
 
-  private def KEY = "BULK_v2"
+  private def KEY = "BULK_v3"
   
   def saveObject(prefs: Preferences, obj: Serializable): Unit = {
     Using(new ByteArrayOutputStream()) { baos =>
@@ -49,4 +51,12 @@ object AppPreferences {
       result.flatten.toOption
     }
   }
+
+  def prefs: Preferences = Preferences.userNodeForPackage(classOf[DuoCBZReader.type])
+
+  def load: Option[AggregatePersistedState] =
+    loadObject[AggregatePersistedState](prefs)
+    
+  def save(toPersist:AggregatePersistedState):Unit =
+    saveObject(prefs, toPersist)  
 }

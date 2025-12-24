@@ -19,11 +19,14 @@ package state
 
 import CBZImages.Direction.LeftToRight
 import CBZImages.{Direction, PanelID}
+
 import RecentStates.EMPTY
 import state.PartialState.pageForPanel
 import state.ReaderState.Mode.*
 import state.ReaderState.Size.Image
 import state.ReaderState.*
+
+import be.afront.reader.state.Preferences.PreferenceKey
 
 import java.awt.image.BufferedImage
 import java.io.File
@@ -42,17 +45,20 @@ case class ReaderState(
    direction:Direction,
    encoding: Encoding,
    showPageNumbers:Boolean,
+   preferences:Preferences,
    recentStates:RecentStates
 ) extends AutoCloseable {
 
   private def checkScroll(pos: Double): Double =
     math.max(0.0, math.min(1.0, pos))
 
-  private def this(partialStates: List[PartialState], size:Size, direction:Direction, encoding:Encoding, showPageNumbers:Boolean, recentStates:RecentStates) =
-    this(modeFrom(partialStates.size), partialStates, 0, 0.5, 0.5, size, direction, encoding,  showPageNumbers, recentStates)
+  private def this(partialStates: List[PartialState], size:Size, direction:Direction, encoding:Encoding,
+                   showPageNumbers:Boolean, preferences:Preferences, recentStates:RecentStates) =
+    this(modeFrom(partialStates.size), partialStates, 0, 0.5, 0.5, size, direction, encoding,  showPageNumbers, preferences, recentStates)
 
   def this(partialStates: List[PartialState], currentState:ReaderState) =
     this(partialStates, currentState.size, currentState.direction, currentState.encoding, currentState.showPageNumbers,
+      currentState.preferences,
       currentState.recentStates.filesWereOpened(RecentState(partialStates.map(_.images.file), INITIAL_STATE.toSave)))
 
   def zoomFactor:Double = pow(ZOOM_STEP, zoomLevel)
@@ -161,6 +167,9 @@ case class ReaderState(
   def setEncoding(newEncoding: Encoding): ReaderState =
     copy(encoding = newEncoding)
 
+  def changePreference(key:PreferenceKey, newValue:Boolean):ReaderState =
+    copy(preferences = preferences.changePreference(key:PreferenceKey, newValue:Boolean))
+
   override def close(): Unit =
     partialStates.foreach(_.close())
 }
@@ -209,7 +218,7 @@ object ReaderState {
   
   def ZOOM_STEP = 1.2
 
-  def INITIAL_STATE = new ReaderState(List(), Image, LeftToRight, Encoding.DEFAULT, true, EMPTY)
+  def INITIAL_STATE = new ReaderState(List(), Image, LeftToRight, Encoding.DEFAULT, true, Preferences.DEFAULT, EMPTY)
 
   def modeFrom(size: Int):Mode =
     if (size == 2) Dual2 else if (size == 1) Single else Blank

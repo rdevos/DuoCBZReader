@@ -18,7 +18,9 @@ package be.afront.reader
 
 import state.ReaderState.{Encoding, Help, MenuItemSource, Mode, Size}
 import ResourceLookup.{MenuItemKey, MenuKey}
-import state.{ReaderState, RecentStates}
+import state.{Preferences, ReaderState, RecentStates}
+
+import Preferences.PreferenceKey.AutoRestore
 
 import java.awt.event.{ActionEvent, ActionListener, ItemEvent}
 import java.awt.{CheckboxMenuItem, Menu, MenuBar, MenuItem}
@@ -30,6 +32,7 @@ object MenuBuilder {
     menuBar.add(fileMenu(state.recentStates))
     menuBar.add(modeMenu(state.mode))
     menuBar.add(sizeMenu(state.size))
+    menuBar.add(preferencesMenu(state.preferences))
     menuBar.add(optionsMenu)
     menuBar.add(encodingMenu(state.encoding))
     menuBar.add(helpMenu)
@@ -75,6 +78,10 @@ object MenuBuilder {
   def sizeMenu(size:Size)(using EventHandler, ResourceLookup): Menu =
     localizedMenu(MenuKey.Size,
       menuItemsForEnumeratedMenu(Size.values.toList, (handler, tag) => handler.changeSize(tag), _ != size))
+
+  def preferencesMenu(preferences:Preferences)(using handler: EventHandler, lookup: ResourceLookup): Menu =
+    localizedMenu(MenuKey.Preferences, List(
+      checkBoxMenu(MenuItemKey.AutoRestore, preferences.autoRestore, (a, b) => a.changePreference(AutoRestore, b))))
 
   def optionsMenu(using handler: EventHandler, lookup: ResourceLookup): Menu =
     localizedMenu(MenuKey.Options, List(

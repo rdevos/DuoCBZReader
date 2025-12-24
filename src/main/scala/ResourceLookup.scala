@@ -38,6 +38,7 @@ object ResourceLookup {
     case Recent extends MenuKey("MENU_Recent")
     case Mode extends MenuKey("MENU_Mode")
     case Size extends MenuKey("MENU_Size")
+    case Preferences extends MenuKey("MENU_Preferences")
     case Options extends MenuKey("MENU_Options")
     case Encoding extends MenuKey("MENU_Encoding")
     case Help extends MenuKey("MENU_Help")
@@ -47,6 +48,7 @@ object ResourceLookup {
     case Open extends MenuItemKey("MENU_ITEM_Open")
     case Clear extends MenuItemKey("MENU_ITEM_Clear")
     case Info extends MenuItemKey("MENU_ITEM_Info")
+    case AutoRestore extends MenuItemKey("MENU_ITEM_Auto_Restore")
     case RightToLeft extends MenuItemKey("MENU_ITEM_Right_To_Left")
     case PageNumbers extends MenuItemKey("MENU_ITEM_Page_Numbers")
   }
