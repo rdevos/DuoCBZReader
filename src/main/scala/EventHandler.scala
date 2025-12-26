@@ -18,20 +18,19 @@ package be.afront.reader
 
 import EventHandler.{FileSelection, SENSITIVITY, WHEEL_SENSITIVITY, handle, openFromUI, openSelectedFiles}
 import CBZImages.Direction.{LeftToRight, RightToLeft}
-import state.ReaderState.{Encoding, Help, INITIAL_STATE, Mode, Size, modeFrom}
+import state.ReaderState.{Encoding, Help, Mode, Size}
 import state.ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single, SingleEvenOdd, SingleOddEven}
 import CBZImages.{Dimensions, FileCheck, checkFile}
 import ResourceLookup.{Label, MenuItemKey, MenuKey}
 import menu.MenuBuilder.{alterMenu, menuItem, modeMenuItems}
 import EventHandler.FileSelection.{Event, Restore, UI}
-import state.RecentStates.EMPTY
 import state.{AggregatePersistedState, PartialState, ReaderState, RecentState, RecentStates}
 import state.AppPreferences.PreferenceKey
 import menu.{RecentFileMenuItem, TaggedMenuBar}
 
 import java.awt.desktop.{OpenFilesEvent, OpenFilesHandler}
-import java.awt.{CheckboxMenuItem, FileDialog, Frame, Menu, MenuItem, Point}
-import java.awt.event.{ActionEvent, ActionListener, ComponentEvent, ItemEvent, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener, MouseWheelEvent, MouseWheelListener}
+import java.awt.{CheckboxMenuItem, FileDialog, Frame, MenuItem, Point}
+import java.awt.event.{ActionEvent, ActionListener, ComponentEvent, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener, MouseWheelEvent, MouseWheelListener}
 import javax.swing.{JEditorPane, JFrame, JScrollPane, SwingUtilities}
 import java.awt.event.KeyEvent.{VK_2, VK_4, VK_6, VK_8, VK_ADD, VK_DOWN, VK_LEFT, VK_MINUS, VK_NUMPAD2, VK_NUMPAD4, VK_NUMPAD6, VK_NUMPAD8, VK_PLUS, VK_Q, VK_RIGHT, VK_SHIFT, VK_SPACE, VK_SUBTRACT, VK_UP}
 import java.awt.event.ItemEvent.SELECTED
@@ -131,7 +130,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     })
   }
 
-  def updateRecentSubMenu(menuBar:TaggedMenuBar, newState:ReaderState):Unit =
+  private def updateRecentSubMenu(menuBar:TaggedMenuBar, newState:ReaderState):Unit =
     menuBar.withSubMenuDo(MenuKey.File, MenuKey.Recent, _.replaceMenuItems(recentFileMenuItems(newState.recentStates)))
 
   def recentFileMenuItems(recentStates:RecentStates)(using lookup:ResourceLookup): List[MenuItem] = {
@@ -416,7 +415,7 @@ object EventHandler {
       // if there is no match, it means we could not find one or more files. Don't restore partially
 
       matchingRecentState match {
-        case Some(recentState) => {
+        case Some(recentState) =>
           val savedState = recentState.save
           new ReaderState(
             savedState.mode,
@@ -431,7 +430,6 @@ object EventHandler {
             currentState.preferences,
             currentState.recentStates,
             savedState.frameDimensions)
-        }
         case None => currentState
       }
     } else {
