@@ -18,7 +18,9 @@ package be.afront.reader
 package state
 
 import CBZImages.Direction
-import state.ReaderState.{Encoding, Mode, Size}
+import state.ReaderState.{Mode, Size}
+
+import EventHandler.FrameDimensions
 
 
 case class PersistedReaderState(
@@ -29,5 +31,6 @@ case class PersistedReaderState(
      vs: Double,
      size: Size,
      direction:Direction,
-     showPageNumbers:Boolean) {
+     showPageNumbers:Boolean,
+     frameDimensions:FrameDimensions) {
 }

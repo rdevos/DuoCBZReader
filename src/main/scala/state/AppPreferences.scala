@@ -18,22 +18,22 @@ package be.afront.reader
 
 package state
 
-import state.Preferences.PreferenceKey
+import state.AppPreferences.PreferenceKey
 
-import Preferences.PreferenceKey.AutoRestore
+import AppPreferences.PreferenceKey.AutoRestore
 
-case class Preferences(autoRestore:Boolean) {
+case class AppPreferences(autoRestore:Boolean) {
   
-  def changePreference(key:PreferenceKey, newValue:Boolean): Preferences =
+  def changePreference(key:PreferenceKey, newValue:Boolean): AppPreferences =
     key match {
       case AutoRestore => copy(autoRestore = newValue)
     }
     
 }
 
-object Preferences {
+object AppPreferences {
   
-  val DEFAULT = new Preferences(false)
+  val DEFAULT = new AppPreferences(false)
 
   enum PreferenceKey {
     case AutoRestore

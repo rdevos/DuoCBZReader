@@ -25,8 +25,9 @@ import state.PartialState.pageForPanel
 import state.ReaderState.Mode.*
 import state.ReaderState.Size.Image
 import state.ReaderState.*
+import state.AppPreferences.PreferenceKey
 
-import be.afront.reader.state.Preferences.PreferenceKey
+import EventHandler.FrameDimensions
 
 import java.awt.image.BufferedImage
 import java.io.File
@@ -36,30 +37,34 @@ import scala.math.pow
 type PageSkip = (state:PartialState, success:Boolean)
 
 case class ReaderState(
-   mode: Mode,
-   partialStates: List[PartialState],
-   zoomLevel: Int,
-   hs: Double,
-   vs: Double,
-   size: Size,
-   direction:Direction,
-   encoding: Encoding,
-   showPageNumbers:Boolean,
-   preferences:Preferences,
-   recentStates:RecentStates
+    mode: Mode,
+    partialStates: List[PartialState],
+    zoomLevel: Int,
+    hs: Double,
+    vs: Double,
+    size: Size,
+    direction:Direction,
+    encoding: Encoding,
+    showPageNumbers:Boolean,
+    preferences:AppPreferences,
+    recentStates:RecentStates,
+    frameDimensions:FrameDimensions
 ) extends AutoCloseable {
 
   private def checkScroll(pos: Double): Double =
     math.max(0.0, math.min(1.0, pos))
 
   private def this(partialStates: List[PartialState], size:Size, direction:Direction, encoding:Encoding,
-                   showPageNumbers:Boolean, preferences:Preferences, recentStates:RecentStates) =
-    this(modeFrom(partialStates.size), partialStates, 0, 0.5, 0.5, size, direction, encoding,  showPageNumbers, preferences, recentStates)
+                   showPageNumbers:Boolean, preferences:AppPreferences, recentStates:RecentStates, frameDimensions:FrameDimensions) =
+    this(modeFrom(partialStates.size), partialStates, 0, 0.5, 0.5, size, direction, encoding,  showPageNumbers,
+      preferences, recentStates, frameDimensions)
 
   def this(partialStates: List[PartialState], currentState:ReaderState) =
     this(partialStates, currentState.size, currentState.direction, currentState.encoding, currentState.showPageNumbers,
       currentState.preferences,
-      currentState.recentStates.filesWereOpened(RecentState(partialStates.map(_.images.file), INITIAL_STATE.toSave)))
+      currentState.recentStates.filesWereOpened(RecentState(partialStates.map(_.images.file), INITIAL_STATE.toSave)),
+      currentState.frameDimensions
+    )
 
   def zoomFactor:Double = pow(ZOOM_STEP, zoomLevel)
 
@@ -67,7 +72,8 @@ case class ReaderState(
     partialStates.map(_.file)
     
   def toSave:PersistedReaderState =
-    PersistedReaderState(mode, partialStates.map(_.currentPage), zoomLevel, hs, vs, size, direction, showPageNumbers)
+    PersistedReaderState(mode, partialStates.map(_.currentPage), zoomLevel, hs, vs, size, direction,
+      showPageNumbers, frameDimensions)
 
   def partialNames:String =
     (if(direction ==LeftToRight) partialStates else partialStates.reverse)
@@ -180,14 +186,14 @@ object ReaderState {
     def selectable:Boolean
   }
 
-  enum Mode(val description:String, val selectable:Boolean, val numFiles:Int, val modulo:Int, val delta:Int) extends MenuItemSource {
-    case Blank extends Mode("Blank", false, 0, -1, 0)
-    case Single extends Mode("MENU_ITEM_Single", true, 1, -1, 1)
-    case SingleOddEven extends Mode("MENU_ITEM_SingleWideOddEven", true, 1, 1, 2)
-    case SingleEvenOdd extends Mode("MENU_ITEM_SingleWideEvenOdd", true, 1, 0, 2)
-    case Dual2 extends Mode("MENU_ITEM_Dual_2_columns", true, 2, -1, 1)
-    case Dual1 extends Mode("MENU_ITEM_Dual_1_column", true, 2, -1, 1)
-    case Dual1b extends Mode("Dual 1 column alt", false, 2, -1, 1)
+  enum Mode(val description:String, val selectable:Boolean, val numFiles:Int, val columns:Int, val modulo:Int, val delta:Int) extends MenuItemSource {
+    case Blank extends Mode("Blank", false, 0, 0, -1, 0)
+    case Single extends Mode("MENU_ITEM_Single", true, 1, 1, -1, 1)
+    case SingleOddEven extends Mode("MENU_ITEM_SingleWideOddEven", true, 1, 2, 1, 2)
+    case SingleEvenOdd extends Mode("MENU_ITEM_SingleWideEvenOdd", true, 1, 2, 0, 2)
+    case Dual2 extends Mode("MENU_ITEM_Dual_2_columns", true, 2, 2, -1, 1)
+    case Dual1 extends Mode("MENU_ITEM_Dual_1_column", true, 2, 1, -1, 1)
+    case Dual1b extends Mode("Dual 1 column alt", false, 2, 1, -1, 1)
   }
 
   enum Size(val description:String) extends MenuItemSource {
@@ -218,7 +224,8 @@ object ReaderState {
   
   def ZOOM_STEP = 1.2
 
-  def INITIAL_STATE = new ReaderState(List(), Image, LeftToRight, Encoding.DEFAULT, true, Preferences.DEFAULT, EMPTY)
+  def INITIAL_STATE =
+    new ReaderState(List(), Image, LeftToRight, Encoding.DEFAULT, true, AppPreferences.DEFAULT, EMPTY, (0,0))
 
   def modeFrom(size: Int):Mode =
     if (size == 2) Dual2 else if (size == 1) Single else Blank

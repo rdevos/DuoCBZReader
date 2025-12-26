@@ -16,30 +16,30 @@
 
 package be.afront.reader
 
-import state.AggregatePersistedState
+import state.{AggregatePersistedState, AppPreferences, RecentState, RecentStates}
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
 import java.util.prefs.Preferences
 import scala.util.{Try, Using}
 
-object AppPreferences {
+object PreferencesIO {
 
-  private def KEY = "BULK_v3"
+  private def KEY_PREFIX = "BULK_v4"
   
-  def saveObject(prefs: Preferences, obj: Serializable): Unit = {
+  def saveObject(prefs: Preferences, key:String, obj: Serializable): Unit = {
     Using(new ByteArrayOutputStream()) { baos =>
       Using(new ObjectOutputStream(baos)) { oos =>
         oos.writeObject(obj)
       }
-      prefs.putByteArray(KEY, baos.toByteArray)
+      prefs.putByteArray(key, baos.toByteArray)
     }.recover { case ex: Exception =>
       ex.printStackTrace()
     }
     prefs.flush()
   }
 
-  def loadObject[T](prefs: Preferences): Option[T] = {
-    val bytes = prefs.getByteArray(KEY, null)
+  def loadObject[T](prefs: Preferences, key:String): Option[T] = {
+    val bytes = prefs.getByteArray(key, null)
     if (bytes == null || bytes.isEmpty) {
       None
     } else {
@@ -54,9 +54,13 @@ object AppPreferences {
 
   def prefs: Preferences = Preferences.userNodeForPackage(classOf[DuoCBZReader.type])
 
-  def load: Option[AggregatePersistedState] =
-    loadObject[AggregatePersistedState](prefs)
-    
-  def save(toPersist:AggregatePersistedState):Unit =
-    saveObject(prefs, toPersist)  
+  def load: Option[AggregatePersistedState] = {
+    loadObject[AppPreferences](prefs, KEY_PREFIX).map(appPrefs => new AggregatePersistedState(
+      appPrefs, new RecentStates(Range(0, 10).flatMap(ix => loadObject[RecentState](prefs, KEY_PREFIX+"_"+ix)).toList)))
+  }
+
+  def save(toPersist:AggregatePersistedState):Unit = {
+    saveObject(prefs, KEY_PREFIX, toPersist.preferences)
+    toPersist.recentStates.states.zipWithIndex.foreach((s, ix) => saveObject(prefs, KEY_PREFIX+"_"+ix, s))
+  }
 }

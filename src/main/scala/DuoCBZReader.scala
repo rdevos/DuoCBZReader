@@ -19,15 +19,16 @@ package be.afront.reader
 import java.awt.{Desktop, Dimension, GraphicsEnvironment, GridLayout, Rectangle}
 import javax.swing.{ImageIcon, JFrame, JOptionPane}
 import javax.swing.WindowConstants.EXIT_ON_CLOSE
-import state.ReaderState.INITIAL_STATE
 import CBZImages.Dimensions
 import ResourceLookup.{Label, MessageKey}
 import CBZImages.PanelID.{LeftOrFront, RightOrBack}
 import menu.MenuBuilder.initMenus
-
 import state.ReaderState
 
+import state.ReaderState.INITIAL_STATE
+
 import java.awt.desktop.{AboutEvent, AboutHandler}
+import java.awt.event.{ComponentAdapter, ComponentEvent}
 import java.util.Locale
 
 object DuoCBZReader {
@@ -45,8 +46,9 @@ object DuoCBZReader {
 
     frame.setLayout(new GridLayout(1, 2))
 
-    val state: ReaderState = AppPreferences.load
-      .fold(INITIAL_STATE)(loaded => INITIAL_STATE.copy(recentStates = loaded.recentStates, preferences = loaded.preferences))
+    val state: ReaderState = PreferencesIO.load
+      .fold(INITIAL_STATE)
+        (loaded => INITIAL_STATE.copy(recentStates = loaded.recentStates, preferences = loaded.preferences))
 
     val panel1 = new ImagePanel(state, LeftOrFront)
     val panel2 = new ImagePanel(state, RightOrBack)
@@ -63,8 +65,13 @@ object DuoCBZReader {
       state.recentStates.states.headOption
         .foreach(s => handler.restore(s))
 
+    // could not resist
+    frame.setName("Mainframe")
     frame.setVisible(true)
     frame.requestFocusInWindow()
+    frame.addComponentListener(new ComponentAdapter(){
+      override def componentResized(e: ComponentEvent): Unit = handler.frameDidResize(e)
+    })
 
     setupDesktop
   }

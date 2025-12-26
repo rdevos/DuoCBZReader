@@ -18,20 +18,20 @@ package be.afront.reader
 
 import EventHandler.{FileSelection, SENSITIVITY, WHEEL_SENSITIVITY, handle, openFromUI, openSelectedFiles}
 import CBZImages.Direction.{LeftToRight, RightToLeft}
-import state.ReaderState.{Encoding, Help, Mode, Size, modeFrom}
+import state.ReaderState.{Encoding, Help, INITIAL_STATE, Mode, Size, modeFrom}
 import state.ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single, SingleEvenOdd, SingleOddEven}
 import CBZImages.{Dimensions, FileCheck, checkFile}
-import ResourceLookup.{MenuItemKey, MenuKey}
+import ResourceLookup.{Label, MenuItemKey, MenuKey}
 import menu.MenuBuilder.{alterMenu, menuItem, modeMenuItems}
 import EventHandler.FileSelection.{Event, Restore, UI}
 import state.RecentStates.EMPTY
 import state.{AggregatePersistedState, PartialState, ReaderState, RecentState, RecentStates}
-import state.Preferences.PreferenceKey
+import state.AppPreferences.PreferenceKey
 import menu.{RecentFileMenuItem, TaggedMenuBar}
 
 import java.awt.desktop.{OpenFilesEvent, OpenFilesHandler}
 import java.awt.{CheckboxMenuItem, FileDialog, Frame, Menu, MenuItem, Point}
-import java.awt.event.{ActionEvent, ActionListener, ItemEvent, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener, MouseWheelEvent, MouseWheelListener}
+import java.awt.event.{ActionEvent, ActionListener, ComponentEvent, ItemEvent, KeyEvent, KeyListener, MouseEvent, MouseListener, MouseMotionListener, MouseWheelEvent, MouseWheelListener}
 import javax.swing.{JEditorPane, JFrame, JScrollPane, SwingUtilities}
 import java.awt.event.KeyEvent.{VK_2, VK_4, VK_6, VK_8, VK_ADD, VK_DOWN, VK_LEFT, VK_MINUS, VK_NUMPAD2, VK_NUMPAD4, VK_NUMPAD6, VK_NUMPAD8, VK_PLUS, VK_Q, VK_RIGHT, VK_SHIFT, VK_SPACE, VK_SUBTRACT, VK_UP}
 import java.awt.event.ItemEvent.SELECTED
@@ -82,24 +82,24 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   }
 
   private def updateState(newState: ReaderState): Unit =
-    updateState(newState, false, false)
+    updateState(newState, None, false)
 
 
-  private def updateState(newState:ReaderState, afterOpen:Boolean, clearRecents:Boolean): Unit = {
-    if(state.mode != newState.mode) {
-      layoutChangeFor(newState)
+  private def updateState(newState:ReaderState, afterOpen:Option[FileSelection], clearRecents:Boolean): Unit = {
+    if(state.mode != newState.mode || afterOpen.isDefined) {
+      layoutChangeFor(newState, afterOpen)
       frame.revalidate()
     }
 
     val numFiles = newState.partialStates.size
 
-    if(afterOpen || clearRecents)
+    if(afterOpen.isDefined || clearRecents)
       updateMenuBar(numFiles, newState)
 
-    if ((afterOpen || state.direction != newState.direction) && numFiles > 0)
-        updateTitle(newState.partialNames)
+    if (afterOpen.isDefined || state.direction != newState.direction)
+        updateTitle(if(numFiles != 0) newState.partialNames else lookup(Label.Application))
 
-    state = newState
+    state = newState.copy(frameDimensions = (frame.getWidth, frame.getHeight))
 
     panel1.setNewState(state)
     if (numFiles == 2 || state.mode == SingleEvenOdd || state.mode == SingleOddEven)
@@ -117,7 +117,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     val menuBar = frame.getMenuBar.asInstanceOf[TaggedMenuBar]
     val count = newState.partialStates.size
 
-    menuBar.withSubMenuDo(MenuKey.File, MenuKey.Recent, _.replaceMenuItems(recentFileMenuItems(state.recentStates)))
+    updateRecentSubMenu(menuBar, newState)
 
     menuBar.withMenuDo(MenuKey.Mode, _.replaceMenuItems(modeMenuItems(count, newState.mode)(using this, lookup)))
 
@@ -131,11 +131,13 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     })
   }
 
+  def updateRecentSubMenu(menuBar:TaggedMenuBar, newState:ReaderState):Unit =
+    menuBar.withSubMenuDo(MenuKey.File, MenuKey.Recent, _.replaceMenuItems(recentFileMenuItems(newState.recentStates)))
+
   def recentFileMenuItems(recentStates:RecentStates)(using lookup:ResourceLookup): List[MenuItem] = {
     val nonEmpty = recentStates.nonEmpty
     
     val clear = menuItem(MenuItemKey.Clear, nonEmpty)(using this, lookup)
-    clear.addActionListener((e: ActionEvent) => clearRecentFiles())
 
     if(nonEmpty) {
       recentStates.states.map(recentFileMenuItem) ++ List(new MenuItem("-"), clear)
@@ -154,19 +156,20 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     item 
   }
 
-  private def updateStateForNewFiles(newState: ReaderState):Unit = {
-    val updateNewState = newState.copy(recentStates=newState.recentStates.updateWhere(state.files, state.toSave))
-    updateState(updateNewState, true, false)
+  private def updateStateForNewFiles(newState: ReaderState, fileSelection:FileSelection):Unit = {
+    val updatedNewState = newState.copy(recentStates=newState.recentStates.updateWhere(state.files, state.toSave))
+    updateState(updatedNewState, Some(fileSelection), false)
   }
 
   private def clearRecentStates():Unit = {
-    updateState(state.copy(recentStates = state.recentStates.clear), false, true)
+    updateState(state.copy(recentStates = state.recentStates.clear), None, true)
+    updateRecentSubMenu(frame.getMenuBar.asInstanceOf[TaggedMenuBar], state)
   }
 
-  def updatedRecentStates:RecentStates =
+  private def updatedRecentStates:RecentStates =
     state.recentStates.updateWhere(state.files, state.toSave)
 
-  private def layoutChangeFor(newState:ReaderState): Unit = {
+  private def layoutChangeFor(newState:ReaderState, afterOpen:Option[FileSelection]): Unit = {
     val oldMode = state.mode
     val newMode = newState.mode
 
@@ -175,11 +178,19 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     val panels = visiblePanels(newMode)
     panels.foreach(frame.add)
 
-    if(panels.size == 1)
-      frame.setSize(screenSize.width / 2, screenSize.height)
-    else if(panels.size == 2)
-      frame.setSize(screenSize.width, screenSize.height)
-    else frame.setSize(0, 0)   
+
+    if(afterOpen.contains(Restore)) {
+      frame.setSize(newState.frameDimensions.width, newState.frameDimensions.height)
+    } else if(afterOpen.isDefined || oldMode.numFiles ==0  || newMode.numFiles == 0) {
+      if (panels.size == 1)
+        frame.setSize(screenSize.width / 2, screenSize.height)
+      else if (panels.size == 2)
+        frame.setSize(screenSize.width, screenSize.height)
+      else frame.setSize(0, 0)
+    } else {
+      val newWidth = Math.min(newState.frameDimensions.width * newMode.columns / oldMode.columns, screenSize.width)
+      frame.setSize(newWidth, frame.getHeight)
+    }
   }
 
   private def visiblePanels(mode:Mode):List[ImagePanel] = {
@@ -264,7 +275,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   override def actionPerformed(event: ActionEvent): Unit = {
     event.getActionCommand match {
       case MenuItemKey.Open.description => 
-        updateStateForNewFiles(openFromUI(state))
+        updateStateForNewFiles(openFromUI(state), UI)
       case MenuItemKey.Info.description =>
         displayMetadata()
       case MenuItemKey.Clear.description =>
@@ -272,6 +283,11 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
 
       case _ => println("unimplemented command "+ event.getActionCommand)
     }
+  }
+
+  def frameDidResize(e: ComponentEvent): Unit = {
+    val size = e.getComponent.getSize
+    updateState(state.copy(frameDimensions = (size.width, size.height)))
   }
 
   private def displayMetadata(): Unit = {
@@ -322,9 +338,6 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   def openFiles(e: OpenFilesEvent): Unit =
     openFiles(e.getFiles.asScala.toList, Event)
 
-  private def clearRecentFiles():Unit =
-    updateState(state.copy(recentStates=EMPTY), false, true)
-
   // only for Event or Restore
   private def openFiles(files:List[File], fileSelection:FileSelection): Unit = {
     if (files.nonEmpty) {
@@ -333,19 +346,21 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
         case (file, Success(image)) => Some(image)
       })
       if (images.size == files.size) {
-        updateStateForNewFiles(openSelectedFiles(state, fileSelection, images))
+        updateStateForNewFiles(openSelectedFiles(state, fileSelection, images), fileSelection)
       }
     }
   }
 
   def applicationWillEnd():Unit =
-    AppPreferences.save(AggregatePersistedState(state.preferences, updatedRecentStates))
+    PreferencesIO.save(AggregatePersistedState(state.preferences, updatedRecentStates))
 }
 
 object EventHandler {
   val SENSITIVITY = 0.005
 
   val WHEEL_SENSITIVITY = 0.01
+
+  type FrameDimensions = (width: Int, height: Int)
 
   enum FileSelection {
     case UI, Event, Restore
@@ -414,7 +429,8 @@ object EventHandler {
             currentState.encoding,
             savedState.showPageNumbers,
             currentState.preferences,
-            currentState.recentStates)
+            currentState.recentStates,
+            savedState.frameDimensions)
         }
         case None => currentState
       }

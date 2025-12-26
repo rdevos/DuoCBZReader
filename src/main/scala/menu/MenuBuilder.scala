@@ -18,9 +18,9 @@ package be.afront.reader
 package menu
 
 import ResourceLookup.{MenuItemKey, MenuKey}
-import state.Preferences.PreferenceKey.AutoRestore
+import state.AppPreferences.PreferenceKey.AutoRestore
 import state.ReaderState.*
-import state.{Preferences, ReaderState, RecentStates}
+import state.{AppPreferences, ReaderState, RecentStates}
 
 import java.awt.event.{ActionEvent, ActionListener, ItemEvent}
 import java.awt.{CheckboxMenuItem, Menu, MenuItem}
@@ -76,7 +76,7 @@ object MenuBuilder {
     localizedMenu(MenuKey.Size,
       menuItemsForEnumeratedMenu(Size.values.toList, (handler, tag) => handler.changeSize(tag), _ != size))
 
-  private def preferencesMenu(preferences:Preferences)(using handler: EventHandler, lookup: ResourceLookup): TaggedMenu =
+  private def preferencesMenu(preferences:AppPreferences)(using handler: EventHandler, lookup: ResourceLookup): TaggedMenu =
     localizedMenu(MenuKey.Preferences, List(
       checkBoxMenu(MenuItemKey.AutoRestore, preferences.autoRestore, (a, b) => a.changePreference(AutoRestore, b))))
 
