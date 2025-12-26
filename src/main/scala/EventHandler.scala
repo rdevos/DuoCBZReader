@@ -329,7 +329,6 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     frame.setVisible(true)
   }
 
-
   override def mouseWheelMoved(e: MouseWheelEvent): Unit =
     updateState(state.scrollVertical(e.getWheelRotation * WHEEL_SENSITIVITY))
 
