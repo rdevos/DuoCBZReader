@@ -15,9 +15,10 @@
 */
 
 package be.afront.reader
+package menu
 
-import state.RecentState
+import state.ReaderState.MenuItemSource
 
 import java.awt.MenuItem
 
-class RecentFileMenuItem(val state: RecentState) extends MenuItem(state.files.map(_.getName).mkString(" / "))
+class EnumeratedMenuItem[K <: MenuItemSource](val tag: K, label:String) extends MenuItem(label)

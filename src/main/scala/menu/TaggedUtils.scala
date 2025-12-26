@@ -15,9 +15,20 @@
 */
 
 package be.afront.reader
+package menu
 
-import state.ReaderState.MenuItemSource
+import ResourceLookup.MenuKey
 
-import java.awt.MenuItem
+import java.awt.MenuComponent
 
-class EnumeratedMenuItem[K <: MenuItemSource](val tag: K, label:String) extends MenuItem(label)
+object TaggedUtils {
+
+  def find(count: => Int, getChild: Int => MenuComponent)(tag: MenuKey): Option[TaggedMenu] = {
+    Range(0, count)
+      .flatMap(ix => getChild(ix) match {
+        case m: TaggedMenu => Some(m)
+        case _ => None
+      })
+      .find(_.key == tag)
+  }
+}

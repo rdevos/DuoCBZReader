@@ -15,21 +15,21 @@
 */
 
 package be.afront.reader
+package menu
 
-import state.ReaderState.{Encoding, Help, MenuItemSource, Mode, Size}
 import ResourceLookup.{MenuItemKey, MenuKey}
+import state.Preferences.PreferenceKey.AutoRestore
+import state.ReaderState.*
 import state.{Preferences, ReaderState, RecentStates}
 
-import Preferences.PreferenceKey.AutoRestore
-
 import java.awt.event.{ActionEvent, ActionListener, ItemEvent}
-import java.awt.{CheckboxMenuItem, Menu, MenuBar, MenuItem}
+import java.awt.{CheckboxMenuItem, Menu, MenuItem}
 
 object MenuBuilder {
 
-  def initMenus(state: ReaderState)(using EventHandler, ResourceLookup): MenuBar = {
-    val menuBar = new MenuBar()
-    menuBar.add(fileMenu(state.recentStates))
+  def initMenus(state: ReaderState)(using EventHandler, ResourceLookup): TaggedMenuBar = {
+    val menuBar = new TaggedMenuBar()
+    menuBar.addMenu(fileMenu(state.recentStates))
     menuBar.add(modeMenu(state.mode))
     menuBar.add(sizeMenu(state.size))
     menuBar.add(preferencesMenu(state.preferences))
@@ -39,8 +39,8 @@ object MenuBuilder {
     menuBar
   }
 
-  def localizedMenu(key: MenuKey, items: List[MenuItem])(using lookup: ResourceLookup): Menu = {
-    val menu = new Menu(lookup(key))
+  private def localizedMenu(key: MenuKey, items: List[MenuItem])(using lookup: ResourceLookup): TaggedMenu = {
+    val menu = TaggedMenu(key)
     items.foreach(menu.add)
     menu
   }
@@ -52,7 +52,7 @@ object MenuBuilder {
     item.addActionListener(handler)
     item
 
-  def checkBoxMenu(key: MenuItemKey, value: Boolean, action: (EventHandler, Int) => Unit)
+  private def checkBoxMenu(key: MenuItemKey, value: Boolean, action: (EventHandler, Int) => Unit)
                           (using handler: EventHandler, lookup: ResourceLookup): MenuItem = {
     val menuItem = new CheckboxMenuItem(lookup(key))
     menuItem.setState(value)
@@ -60,39 +60,36 @@ object MenuBuilder {
     menuItem
   }
 
-  def fileMenu(recentStates:RecentStates)(using EventHandler, ResourceLookup): Menu =
+  private def fileMenu(recentStates:RecentStates)(using EventHandler, ResourceLookup): TaggedMenu =
     localizedMenu(MenuKey.File, List(
       menuItem(MenuItemKey.Open, true),
       recentMenu(recentStates),
       menuItem(MenuItemKey.Info, true)))
 
-  def recentMenu(recentStates:RecentStates)(using handler:EventHandler, lookup:ResourceLookup): Menu = {
-    val menu = new Menu(lookup(MenuKey.Recent))
-    handler.fillRecentFileMenu(menu, recentStates)
-    menu
-  }
+  private def recentMenu(recentStates:RecentStates)(using handler:EventHandler, lookup:ResourceLookup): Menu =
+    TaggedMenu(MenuKey.Recent).replaceMenuItems(handler.recentFileMenuItems(recentStates))
 
-  def modeMenu(mode: Mode)(using EventHandler, ResourceLookup): Menu =
+  private def modeMenu(mode: Mode)(using EventHandler, ResourceLookup): TaggedMenu =
     localizedMenu(MenuKey.Mode, modeMenuItems(mode.numFiles, mode))
 
-  def sizeMenu(size:Size)(using EventHandler, ResourceLookup): Menu =
+  private def sizeMenu(size:Size)(using EventHandler, ResourceLookup): TaggedMenu =
     localizedMenu(MenuKey.Size,
       menuItemsForEnumeratedMenu(Size.values.toList, (handler, tag) => handler.changeSize(tag), _ != size))
 
-  def preferencesMenu(preferences:Preferences)(using handler: EventHandler, lookup: ResourceLookup): Menu =
+  private def preferencesMenu(preferences:Preferences)(using handler: EventHandler, lookup: ResourceLookup): TaggedMenu =
     localizedMenu(MenuKey.Preferences, List(
       checkBoxMenu(MenuItemKey.AutoRestore, preferences.autoRestore, (a, b) => a.changePreference(AutoRestore, b))))
 
-  def optionsMenu(using handler: EventHandler, lookup: ResourceLookup): Menu =
+  private def optionsMenu(using handler: EventHandler, lookup: ResourceLookup): TaggedMenu =
     localizedMenu(MenuKey.Options, List(
       checkBoxMenu(MenuItemKey.RightToLeft, false, (a, b) => a.directionChange(b)),
       checkBoxMenu(MenuItemKey.PageNumbers, true, (a, b) => a.togglePageNumbers(b))))
 
-  def encodingMenu(encoding:Encoding)(using EventHandler, ResourceLookup): Menu =
+  private def encodingMenu(encoding:Encoding)(using EventHandler, ResourceLookup): TaggedMenu =
     localizedMenu(MenuKey.Encoding,
       menuItemsForEnumeratedMenu(Encoding.values.toList, (handler, tag) => handler.changeEncoding(tag), _ != encoding))
 
-  def helpMenu(using EventHandler, ResourceLookup): Menu =
+  private def helpMenu(using EventHandler, ResourceLookup): TaggedMenu =
     localizedMenu(MenuKey.Help, allMenuItems(Help.values.toList, (handler, tag) => handler.displayHelp(tag)))
 
   def alterMenu[K <: MenuItemSource](menu:Menu, selected:K):Unit = {
@@ -112,7 +109,7 @@ object MenuBuilder {
     }
   }
 
-  def menuItemsForEnumeratedMenu[K <: MenuItemSource]
+  private def menuItemsForEnumeratedMenu[K <: MenuItemSource]
     (itemValues: List[K], action: (EventHandler, K) => Unit, enabled:K => Boolean)
     (using handler: EventHandler, lookup: ResourceLookup): List[MenuItem] =
       val items = itemValues.filter(_.selectable).map(k => menuItemForEnumeratedMenu(k, enabled(k)))
@@ -120,7 +117,7 @@ object MenuBuilder {
       items.foreach(item => item.addActionListener(listener))
       items
 
-  def menuItemForEnumeratedMenu[K <: MenuItemSource]
+  private def menuItemForEnumeratedMenu[K <: MenuItemSource]
     (itemValue:K, enabled:Boolean)
     (using lookup: ResourceLookup): EnumeratedMenuItem[K] =
       val item = new EnumeratedMenuItem(itemValue, lookup(itemValue))
@@ -132,7 +129,7 @@ object MenuBuilder {
       Mode.values.toList.filter(item => item.numFiles == count),
       (handler, tag) => handler.changeMode(tag), _ != mode)
 
-  def allMenuItems[K <: MenuItemSource]
+  private def allMenuItems[K <: MenuItemSource]
   (itemValues: List[K], action: (EventHandler, K) => Unit)
   (using handler: EventHandler, lookup: ResourceLookup): List[MenuItem] = {
     val items = itemValues.map(k => new EnumeratedMenuItem(k, lookup(k)))

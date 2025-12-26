@@ -21,13 +21,13 @@ import CBZImages.Direction.{LeftToRight, RightToLeft}
 import state.ReaderState.{Encoding, Help, Mode, Size, modeFrom}
 import state.ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single, SingleEvenOdd, SingleOddEven}
 import CBZImages.{Dimensions, FileCheck, checkFile}
-import ResourceLookup.MenuItemKey
-import MenuBuilder.{alterMenu, menuItem, menuItemsForEnumeratedMenu, modeMenuItems}
+import ResourceLookup.{MenuItemKey, MenuKey}
+import menu.MenuBuilder.{alterMenu, menuItem, modeMenuItems}
 import EventHandler.FileSelection.{Event, Restore, UI}
 import state.RecentStates.EMPTY
 import state.{AggregatePersistedState, PartialState, ReaderState, RecentState, RecentStates}
-
-import be.afront.reader.state.Preferences.PreferenceKey
+import state.Preferences.PreferenceKey
+import menu.{RecentFileMenuItem, TaggedMenuBar}
 
 import java.awt.desktop.{OpenFilesEvent, OpenFilesHandler}
 import java.awt.{CheckboxMenuItem, FileDialog, Frame, Menu, MenuItem, Point}
@@ -36,7 +36,6 @@ import javax.swing.{JEditorPane, JFrame, JScrollPane, SwingUtilities}
 import java.awt.event.KeyEvent.{VK_2, VK_4, VK_6, VK_8, VK_ADD, VK_DOWN, VK_LEFT, VK_MINUS, VK_NUMPAD2, VK_NUMPAD4, VK_NUMPAD6, VK_NUMPAD8, VK_PLUS, VK_Q, VK_RIGHT, VK_SHIFT, VK_SPACE, VK_SUBTRACT, VK_UP}
 import java.awt.event.ItemEvent.SELECTED
 import java.io.File
-import java.util.prefs.Preferences
 import scala.List
 import scala.jdk.CollectionConverters.given
 import scala.util.{Failure, Success}
@@ -115,38 +114,34 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     frame.setTitle(newTitle)
 
   private def updateMenuBar(count:Int, newState:ReaderState)(using lookup: ResourceLookup):Unit = {
-    val menuBar = frame.getMenuBar
+    val menuBar = frame.getMenuBar.asInstanceOf[TaggedMenuBar]
+    val count = newState.partialStates.size
 
-    val recentMenu: Menu = menuBar.getMenu(0).getItem(1).asInstanceOf[Menu]
-    recentMenu.removeAll()
-    fillRecentFileMenu(recentMenu, state.recentStates)
+    menuBar.withSubMenuDo(MenuKey.File, MenuKey.Recent, _.replaceMenuItems(recentFileMenuItems(state.recentStates)))
 
-    val modeMenu = menuBar.getMenu(1)
-    modeMenu.removeAll()
-    modeMenuItems(count, newState.mode)(using this, lookup).foreach(modeMenu.add)
+    menuBar.withMenuDo(MenuKey.Mode, _.replaceMenuItems(modeMenuItems(count, newState.mode)(using this, lookup)))
 
-    val sizeMenu = menuBar.getMenu(2)
-    alterMenu(sizeMenu, newState.size)
+    menuBar.withMenuDo(MenuKey.Size, alterMenu(_, newState.size))
 
-    val optionsMenu = menuBar.getMenu(4)
-    val rtol = optionsMenu.getItem(0).asInstanceOf[CheckboxMenuItem]
-    rtol.setState(newState.direction == RightToLeft)
-    val pgn = optionsMenu.getItem(1).asInstanceOf[CheckboxMenuItem]
-    pgn.setState(newState.showPageNumbers)
+    menuBar.withMenuDo(MenuKey.Options, optionsMenu => {
+      val rtol = optionsMenu.getItem(0).asInstanceOf[CheckboxMenuItem]
+      rtol.setState(newState.direction == RightToLeft)
+      val pgn = optionsMenu.getItem(1).asInstanceOf[CheckboxMenuItem]
+      pgn.setState(newState.showPageNumbers)
+    })
   }
 
-  def fillRecentFileMenu(recentMenu: Menu, recentStates:RecentStates): Unit = {
+  def recentFileMenuItems(recentStates:RecentStates)(using lookup:ResourceLookup): List[MenuItem] = {
     val nonEmpty = recentStates.nonEmpty
-
-    if(nonEmpty) {
-      recentStates.foreach(state => recentMenu.add(recentFileMenuItem(state)))
-      recentMenu.addSeparator()
-    }
-
+    
     val clear = menuItem(MenuItemKey.Clear, nonEmpty)(using this, lookup)
     clear.addActionListener((e: ActionEvent) => clearRecentFiles())
 
-    recentMenu.add(clear)
+    if(nonEmpty) {
+      recentStates.states.map(recentFileMenuItem) ++ List(new MenuItem("-"), clear)
+    } else {
+      List(clear)
+    }
   }
 
   def restore(state:RecentState):Unit = {
@@ -337,7 +332,9 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
         case (file, Failure(err)) => handle(file, err);None
         case (file, Success(image)) => Some(image)
       })
-      updateStateForNewFiles(openSelectedFiles(state, fileSelection, images))
+      if (images.size == files.size) {
+        updateStateForNewFiles(openSelectedFiles(state, fileSelection, images))
+      }
     }
   }
 
@@ -400,21 +397,27 @@ object EventHandler {
     val partialStates = files.map(f => PartialState(f))
     if (fileSelection == Restore) {
 
-      val savedState = currentState.recentStates.states.filter(_.files == files.map(_.file)).head.save
+      val matchingRecentState = currentState.recentStates.states.find(_.files == files.map(_.file))
+      // if there is no match, it means we could not find one or more files. Don't restore partially
 
-      new ReaderState (
-        savedState.mode,
-        partialStates.zip(savedState.currentPages).map((partialState,newPage) => partialState.setPage(newPage)),
-        savedState.zoomLevel,
-        savedState.hs,
-        savedState.vs,
-        savedState.size,
-        savedState.direction,
-        currentState.encoding,
-        savedState.showPageNumbers,
-        currentState.preferences,
-        currentState.recentStates)
-
+      matchingRecentState match {
+        case Some(recentState) => {
+          val savedState = recentState.save
+          new ReaderState(
+            savedState.mode,
+            partialStates.zip(savedState.currentPages).map((partialState, newPage) => partialState.setPage(newPage)),
+            savedState.zoomLevel,
+            savedState.hs,
+            savedState.vs,
+            savedState.size,
+            savedState.direction,
+            currentState.encoding,
+            savedState.showPageNumbers,
+            currentState.preferences,
+            currentState.recentStates)
+        }
+        case None => currentState
+      }
     } else {
       new ReaderState(partialStates, currentState)
     }

@@ -23,7 +23,7 @@ import state.ReaderState.INITIAL_STATE
 import CBZImages.Dimensions
 import ResourceLookup.{Label, MessageKey}
 import CBZImages.PanelID.{LeftOrFront, RightOrBack}
-import MenuBuilder.initMenus
+import menu.MenuBuilder.initMenus
 
 import state.ReaderState
 
