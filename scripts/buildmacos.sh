@@ -59,6 +59,11 @@ pkgbuild --component DuoCBZReader.app \
          --version ${VERSION} \
          component.pkg
 
-productbuild --package component.pkg /Applications DuoCBZReader-${ARCH_SUFFIX}-${VERSION}.pkg
+rm -rf iso/
+mkdir iso
+
+productbuild --package component.pkg /Applications iso/DuoCBZReader-${ARCH_SUFFIX}-${VERSION}.pkg
+
+hdiutil create -volname "DuoCBZReader Installer" -srcfolder iso -ov -format UDZO DuoCBZReaderInstaller-${ARCH_SUFFIX}-${VERSION}.dmg
 
 cd -
