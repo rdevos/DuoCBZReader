@@ -19,13 +19,14 @@ package be.afront.reader
 import CBZImages.{Dimensions, Direction, Part, getDimensions}
 import CBZImages.Part.{First, Latter}
 import state.ReaderState.Encoding
-
 import CBZImages.Direction.{LeftToRight, RightToLeft}
 
 import java.awt.image.BufferedImage
+import BufferedImage.{TYPE_CUSTOM,TYPE_INT_RGB,TYPE_INT_ARGB}
 import org.apache.commons.compress.archivers.zip.{ZipArchiveEntry, ZipFile}
 
-import java.awt.Graphics2D
+import java.awt.{Graphics2D, Transparency}
+import Transparency.OPAQUE
 import java.io.File
 import javax.imageio.stream.ImageInputStream
 import javax.imageio.{ImageIO, ImageReader, ImageTypeSpecifier}
@@ -167,7 +168,7 @@ object CBZImages {
       val fullWidth = img.getWidth
       val halfWidth = fullWidth / 2
       val height = img.getHeight
-      val halfImg = new BufferedImage(halfWidth, height, img.getType)
+      val halfImg = new BufferedImage(halfWidth, height, effectiveImageType(img))
       val g: Graphics2D = halfImg.createGraphics()
       val xOffset = if (direction.sideFor(this) == Side.Left) 0 else fullWidth - halfWidth
       g.drawImage(img, 0, 0, halfWidth, height, xOffset, 0, xOffset + halfWidth, height, null)
@@ -175,6 +176,11 @@ object CBZImages {
       halfImg
     }
   }
+
+  private def effectiveImageType(img: BufferedImage):Int =
+    val baseType = img.getType
+    if (baseType != TYPE_CUSTOM) baseType else
+      if (img.getTransparency == OPAQUE) TYPE_INT_RGB else TYPE_INT_ARGB
 
   def checkFile(file: File, encoding:Encoding): FileCheck =
     (file, Try(new CBZImages(file, encoding)))
