@@ -18,50 +18,61 @@ package be.afront.reader
 
 import ImagePanel.indicatorFont
 import state.ReaderState.Size.{Actual, Width}
-
 import CBZImages.PanelID
 import state.ReaderState
 
+import be.afront.reader.EventHandler.ScaledDimensions
+
 import java.awt.{Color, Font, Graphics, Graphics2D}
 import java.awt.RenderingHints.{KEY_INTERPOLATION, VALUE_INTERPOLATION_BILINEAR}
+import java.awt.image.BufferedImage
 import javax.swing.JPanel
 
-class ImagePanel(initialState: ReaderState, panelID:PanelID) extends JPanel {
+class ImagePanel(initialState: ReaderState, val panelID:PanelID) extends JPanel {
 
   private var state = initialState
 
+  var visibleFraction = 1.0
+
   def setNewState(newState: ReaderState): Unit = {
     state = newState
-    state.getCurrentImage(panelID)
+    state.getCurrentImage(panelID).foreach(recalculateVisibleFaction)
   }
-  
+
+  def recalculateVisibleFaction(img:BufferedImage):Unit =
+    visibleFraction = Math.min(1.0, getHeight.toDouble/scaledDimensions(img).height)
+
+  def scaledDimensions(img:BufferedImage):ScaledDimensions = {
+    val imgWidth = img.getWidth
+    val imgHeight = img.getHeight
+    val panelWidth = getWidth
+    val panelHeight = getHeight
+
+    val widthScale = panelWidth.toDouble / imgWidth
+    val heightScale = panelHeight.toDouble / imgHeight
+
+    val fitScale =
+      if (state.size == Actual) 1.0 else
+        if (state.size == Width) widthScale else
+          Math.min(widthScale, heightScale)
+
+    val scale = fitScale * state.zoomFactor
+
+    ((imgWidth * scale).toInt, (imgHeight * scale).toInt)
+  }
+
   override def paintComponent(g: Graphics): Unit = {
     super.paintComponent(g)
     state.getCurrentImage(panelID).foreach { img =>
       val g2d = g.asInstanceOf[Graphics2D]
       g2d.setRenderingHint(KEY_INTERPOLATION, VALUE_INTERPOLATION_BILINEAR)
 
-      val imgWidth = img.getWidth
-      val imgHeight = img.getHeight
       val panelWidth = getWidth
       val panelHeight = getHeight
 
-      val widthScale = panelWidth.toDouble / imgWidth
-      val heightScale = panelHeight.toDouble / imgHeight
-
-      val fitScale =
-        if(state.size == Actual) 1.0 else
-          if(state.size == Width) widthScale else
-            Math.min(widthScale, heightScale)
-
-      val scale = fitScale * state.zoomFactor
-
-      val scaledWidth = (imgWidth * scale).toInt
-      val scaledHeight = (imgHeight * scale).toInt
-
-      if(state.isMainPanel(panelID)) {
-        state.mainImageVisibleFraction = Math.min(1.0, panelHeight.toDouble/scaledHeight)
-      }
+      val scaled = scaledDimensions(img)
+      val scaledWidth = scaled.width
+      val scaledHeight = scaled.height
 
       val allowHScroll = scaledWidth > panelWidth
       val allowVScroll = scaledHeight > panelHeight

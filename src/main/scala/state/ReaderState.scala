@@ -50,9 +50,7 @@ case class ReaderState(
     recentStates:RecentStates,
     frameDimensions:FrameDimensions
 ) extends AutoCloseable {
-
-  var mainImageVisibleFraction = 1.0
-
+  
   private def checkScroll(pos: Double): Double =
     math.max(0.0, math.min(1.0, pos))
 
@@ -133,8 +131,8 @@ case class ReaderState(
   def scrollDown: ReaderState =
     verticalScroll(SCROLL_STEP)
 
-  def scrollPageDown: ReaderState =
-    verticalScroll(mainImageVisibleFraction/(1-mainImageVisibleFraction))
+  def scrollDownBy(dy:Double): ReaderState =
+    verticalScroll(dy)
 
   def scrollTo(px:Double, py:Double): ReaderState =
     copy(hs=checkScroll(px), vs=checkScroll(py))
@@ -226,7 +224,6 @@ object ReaderState {
 
     def selectable: Boolean = true
   }
-
 
   def SCROLL_STEP = 0.125
   

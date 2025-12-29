@@ -109,6 +109,9 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     }
   }
 
+  private def mainPanel:ImagePanel =
+    if(state.isMainPanel(panel1.panelID)) panel1 else panel2
+
   private def updateTitle(newTitle:String):Unit =
     frame.setTitle(newTitle)
 
@@ -210,7 +213,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   private def stateMachine(keyCode: Int, pressed:Boolean): Option[ReaderState] = {
     if (pressed) keyCode match {
       case VK_SPACE => ifNotBlank {
-        Some(handleSpace(state.mainImageVisibleFraction))
+        Some(handleSpace(mainPanel.visibleFraction))
       }
 
       case VK_RIGHT => ifNotBlank(Some(state.right))
@@ -238,7 +241,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   }
 
   private def handleSpace(visibleFraction:Double):ReaderState =
-    if(canScrollVertical(visibleFraction))  state.scrollPageDown else state.nextPage
+    if(canScrollVertical(visibleFraction)) state.scrollDownBy(visibleFraction/(1-visibleFraction)) else state.nextPage
 
   private def canScrollVertical(visibleFraction:Double):Boolean =
     (visibleFraction < 1.0  && state.vs < 1.0)
@@ -366,7 +369,11 @@ object EventHandler {
 
   val WHEEL_SENSITIVITY = 0.01
 
-  type FrameDimensions = (width: Int, height: Int)
+  type Rectangle = (width: Int, height: Int)
+
+  type ScaledDimensions = Rectangle
+  type FrameDimensions = Rectangle
+
 
   enum FileSelection {
     case UI, Event, Restore
