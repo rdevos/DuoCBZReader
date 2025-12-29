@@ -59,6 +59,10 @@ class ImagePanel(initialState: ReaderState, panelID:PanelID) extends JPanel {
       val scaledWidth = (imgWidth * scale).toInt
       val scaledHeight = (imgHeight * scale).toInt
 
+      if(state.isMainPanel(panelID)) {
+        state.mainImageVisibleFraction = Math.min(1.0, panelHeight.toDouble/scaledHeight)
+      }
+
       val allowHScroll = scaledWidth > panelWidth
       val allowVScroll = scaledHeight > panelHeight
 

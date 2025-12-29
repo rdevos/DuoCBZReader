@@ -146,6 +146,9 @@ object CBZImages {
       case LeftToRight => index
       case RightToLeft => 1 - index
     }
+    
+    def isMainPanel(direction:Direction):Boolean =
+      index == indexForDirection(direction)
   }
   
   enum Side {

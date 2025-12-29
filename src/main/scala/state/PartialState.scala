@@ -41,7 +41,7 @@ case class PartialState(
   def name:String =
     images.name
   
-  def pageChange(newPage:Int):PageSkip =
+  private def pageChange(newPage:Int):PageSkip =
     if(newPage == currentPage) (state=this, success=false) else
       (state=copy(currentPage = newPage), success=true)
 

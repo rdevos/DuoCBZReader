@@ -51,6 +51,8 @@ case class ReaderState(
     frameDimensions:FrameDimensions
 ) extends AutoCloseable {
 
+  var mainImageVisibleFraction = 1.0
+
   private def checkScroll(pos: Double): Double =
     math.max(0.0, math.min(1.0, pos))
 
@@ -131,6 +133,9 @@ case class ReaderState(
   def scrollDown: ReaderState =
     verticalScroll(SCROLL_STEP)
 
+  def scrollPageDown: ReaderState =
+    verticalScroll(mainImageVisibleFraction/(1-mainImageVisibleFraction))
+
   def scrollTo(px:Double, py:Double): ReaderState =
     copy(hs=checkScroll(px), vs=checkScroll(py))
 
@@ -178,6 +183,9 @@ case class ReaderState(
 
   override def close(): Unit =
     partialStates.foreach(_.close())
+
+  def isMainPanel(panelId:PanelID):Boolean =
+    (mode == Single) || panelId.isMainPanel(direction)
 }
 
 object ReaderState {

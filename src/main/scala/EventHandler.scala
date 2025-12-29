@@ -209,7 +209,9 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   
   private def stateMachine(keyCode: Int, pressed:Boolean): Option[ReaderState] = {
     if (pressed) keyCode match {
-      case VK_SPACE => ifNotBlank(Some(state.nextPage))
+      case VK_SPACE => ifNotBlank {
+        Some(handleSpace(state.mainImageVisibleFraction))
+      }
 
       case VK_RIGHT => ifNotBlank(Some(state.right))
       case VK_LEFT => ifNotBlank(Some(state.left))
@@ -234,6 +236,12 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
       case _ => Some(state)
     }
   }
+
+  private def handleSpace(visibleFraction:Double):ReaderState =
+    if(canScrollVertical(visibleFraction))  state.scrollPageDown else state.nextPage
+
+  private def canScrollVertical(visibleFraction:Double):Boolean =
+    (visibleFraction < 1.0  && state.vs < 1.0)
 
   override def keyTyped(e: KeyEvent): Unit = {}
 
