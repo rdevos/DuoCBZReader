@@ -51,6 +51,8 @@ object ResourceLookup {
     case AutoRestore extends MenuItemKey("MENU_ITEM_Auto_Restore")
     case RightToLeft extends MenuItemKey("MENU_ITEM_Right_To_Left")
     case PageNumbers extends MenuItemKey("MENU_ITEM_Page_Numbers")
+    case Greyscale extends MenuItemKey("MENU_ITEM_Greyscale")
+    case Sharpen extends MenuItemKey("MENU_ITEM_Sharpen")
   }
 
   enum MessageKey(val description: String) extends ResourceKey {

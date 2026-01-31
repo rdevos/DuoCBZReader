@@ -11,7 +11,7 @@ jpackage --name DuoCBZReader \
          --type app-image \
          --runtime-image custom-jre \
          --dest ../target/generic \
-         --copyright "Copyright 2025 Paul Janssens - All rights reserved" \
+         --copyright "Copyright 2025-2026 Paul Janssens - All rights reserved" \
          --app-version "${VERSION}" \
          --file-associations zip.properties \
          --file-associations cbz.properties \

@@ -16,16 +16,17 @@
 
 package be.afront.reader
 
-import ImagePanel.indicatorFont
+import ImagePanel.{greyFilter, indicatorFont}
 import state.ReaderState.Size.{Actual, Width}
 import CBZImages.PanelID
 import state.ReaderState
 
-import be.afront.reader.EventHandler.ScaledDimensions
+import EventHandler.ScaledDimensions
 
 import java.awt.{Color, Font, Graphics, Graphics2D}
 import java.awt.RenderingHints.{KEY_INTERPOLATION, VALUE_INTERPOLATION_BILINEAR}
-import java.awt.image.BufferedImage
+import java.awt.color.ColorSpace
+import java.awt.image.{BufferedImage, ColorConvertOp}
 import javax.swing.JPanel
 
 class ImagePanel(initialState: ReaderState, val panelID:PanelID) extends JPanel {
@@ -83,7 +84,9 @@ class ImagePanel(initialState: ReaderState, val panelID:PanelID) extends JPanel 
       val x = if (allowHScroll) (state.hs * deltaX).toInt else 0
       val y = if (allowVScroll) (state.vs * deltaY).toInt else 0
 
-      g2d.drawImage(img, x, y, scaledWidth, scaledHeight, this)
+      val imgToDraw = Filters.applySelectedFilters(img, state.greyscale, state.sharpen)
+
+      g2d.drawImage(imgToDraw, x, y, scaledWidth, scaledHeight, this)
 
       if(state.showPageNumbers) {
         g2d.setColor(Color.BLACK)
@@ -96,4 +99,6 @@ class ImagePanel(initialState: ReaderState, val panelID:PanelID) extends JPanel 
 
 object ImagePanel {
   private val indicatorFont: Font = new Font("SansSerif", Font.PLAIN, 12)
+
+  private val greyFilter = new ColorConvertOp(ColorSpace.getInstance(ColorSpace.CS_GRAY), null)
 }

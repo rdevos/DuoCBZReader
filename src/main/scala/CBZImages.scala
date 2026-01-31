@@ -21,8 +21,8 @@ import CBZImages.Part.{First, Latter}
 import state.ReaderState.Encoding
 import CBZImages.Direction.{LeftToRight, RightToLeft}
 
-import java.awt.image.BufferedImage
-import BufferedImage.{TYPE_CUSTOM,TYPE_INT_RGB,TYPE_INT_ARGB}
+import java.awt.image.{BufferedImage, ColorConvertOp}
+import BufferedImage.{TYPE_CUSTOM, TYPE_INT_ARGB, TYPE_INT_RGB}
 import org.apache.commons.compress.archivers.zip.{ZipArchiveEntry, ZipFile}
 
 import java.awt.{Graphics2D, Transparency}

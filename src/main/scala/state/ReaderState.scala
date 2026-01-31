@@ -46,6 +46,8 @@ case class ReaderState(
     direction:Direction,
     encoding: Encoding,
     showPageNumbers:Boolean,
+    greyscale:Boolean,
+    sharpen:Boolean,
     preferences:AppPreferences,
     recentStates:RecentStates,
     frameDimensions:FrameDimensions
@@ -55,12 +57,14 @@ case class ReaderState(
     math.max(0.0, math.min(1.0, pos))
 
   private def this(partialStates: List[PartialState], size:Size, direction:Direction, encoding:Encoding,
-                   showPageNumbers:Boolean, preferences:AppPreferences, recentStates:RecentStates, frameDimensions:FrameDimensions) =
+                   showPageNumbers:Boolean, greyscale:Boolean, sharpen:Boolean, preferences:AppPreferences, recentStates:RecentStates, frameDimensions:FrameDimensions) =
     this(modeFrom(partialStates.size), partialStates, 0, 0.5, 0.5, size, direction, encoding,  showPageNumbers,
-      preferences, recentStates, frameDimensions)
+      greyscale, sharpen, preferences, recentStates, frameDimensions)
 
   def this(partialStates: List[PartialState], currentState:ReaderState) =
     this(partialStates, currentState.size, currentState.direction, currentState.encoding, currentState.showPageNumbers,
+      currentState.greyscale,
+      currentState.sharpen,
       currentState.preferences,
       currentState.recentStates.filesWereOpened(RecentState(partialStates.map(_.images.file), INITIAL_STATE.toSave)),
       currentState.frameDimensions
@@ -167,6 +171,12 @@ case class ReaderState(
   def setShowPageNumbers(show:Boolean):ReaderState =
     copy(showPageNumbers = show)
 
+  def setGreyscale(enable: Boolean): ReaderState =
+    copy(greyscale = enable)
+
+  def setSharpen(enable: Boolean): ReaderState =
+    copy(sharpen = enable)
+
   def setMode(newMode:Mode):ReaderState =
     copy(mode = newMode)
 
@@ -230,8 +240,25 @@ object ReaderState {
   def ZOOM_STEP = 1.2
 
   def INITIAL_STATE =
-    new ReaderState(List(), Image, LeftToRight, Encoding.DEFAULT, true, AppPreferences.DEFAULT, EMPTY, (0,0))
+    new ReaderState(List(), Image, LeftToRight, Encoding.DEFAULT, true, false, false, AppPreferences.DEFAULT, EMPTY, (0,0))
 
   def modeFrom(size: Int):Mode =
     if (size == 2) Dual2 else if (size == 1) Single else Blank
+    
+  def mergeSavedState(currentState:ReaderState, savedState:PersistedReaderState, partialStates:List[PartialState]):ReaderState =
+    new ReaderState(
+      savedState.mode,
+      partialStates.zip(savedState.currentPages).map((partialState, newPage) => partialState.setPage(newPage)),
+      savedState.zoomLevel,
+      savedState.hs,
+      savedState.vs,
+      savedState.size,
+      savedState.direction,
+      currentState.encoding,
+      savedState.showPageNumbers,
+      currentState.greyscale,
+      currentState.sharpen,
+      currentState.preferences,
+      currentState.recentStates,
+      savedState.frameDimensions)
 }

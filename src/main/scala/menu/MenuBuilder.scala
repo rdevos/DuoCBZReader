@@ -83,7 +83,10 @@ object MenuBuilder {
   private def optionsMenu(using handler: EventHandler, lookup: ResourceLookup): TaggedMenu =
     localizedMenu(MenuKey.Options, List(
       checkBoxMenu(MenuItemKey.RightToLeft, false, (a, b) => a.directionChange(b)),
-      checkBoxMenu(MenuItemKey.PageNumbers, true, (a, b) => a.togglePageNumbers(b))))
+      checkBoxMenu(MenuItemKey.PageNumbers, true, (a, b) => a.togglePageNumbers(b)),
+      checkBoxMenu(MenuItemKey.Greyscale, false, (a, b) => a.toggleGreyscale(b)),
+      checkBoxMenu(MenuItemKey.Sharpen, false, (a, b) => a.toggleSharpen(b))
+    ))
 
   private def encodingMenu(encoding:Encoding)(using EventHandler, ResourceLookup): TaggedMenu =
     localizedMenu(MenuKey.Encoding,

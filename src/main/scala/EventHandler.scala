@@ -18,7 +18,7 @@ package be.afront.reader
 
 import EventHandler.{FileSelection, SENSITIVITY, WHEEL_SENSITIVITY, handle, openFromUI, openSelectedFiles}
 import CBZImages.Direction.{LeftToRight, RightToLeft}
-import state.ReaderState.{Encoding, Help, Mode, Size}
+import state.ReaderState.{Encoding, Help, Mode, Size, mergeSavedState}
 import state.ReaderState.Mode.{Blank, Dual1, Dual1b, Dual2, Single, SingleEvenOdd, SingleOddEven}
 import CBZImages.{Dimensions, FileCheck, checkFile}
 import ResourceLookup.{Label, MenuItemKey, MenuKey}
@@ -207,37 +207,36 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     }
   }
 
-  private def ifNotBlank(r: => Option[ReaderState]):Option[ReaderState] =
-    if(state.mode == Blank) Some(state) else r   
-  
   private def stateMachine(keyCode: Int, pressed:Boolean): Option[ReaderState] = {
-    if (pressed) keyCode match {
-      case VK_SPACE => ifNotBlank {
-        Some(handleSpace(mainPanel.visibleFraction))
+    if (pressed && keyCode == VK_Q) None else Some(
+
+      if(state.mode == Blank) state else {
+        if (pressed) keyCode match {
+          case VK_SPACE => handleSpace(mainPanel.visibleFraction)
+
+          case VK_RIGHT => state.right
+          case VK_LEFT => state.left
+          case VK_UP => state.zoomIn
+          case VK_DOWN => state.zoomOut
+
+          case VK_SHIFT => if (state.mode == Dual1) state.setMode(Dual1b) else state
+
+          case VK_MINUS | VK_SUBTRACT => state.minus
+          case VK_PLUS | VK_ADD => state.plus
+
+          case VK_8 | VK_NUMPAD8 => state.scrollUp
+          case VK_2 | VK_NUMPAD2 => state.scrollDown
+          case VK_4 | VK_NUMPAD4 => state.scrollLeft
+          case VK_6 | VK_NUMPAD6 => state.scrollRight
+
+          case _ => state
+
+        } else keyCode match {
+          case VK_SHIFT => if (state.mode == Dual1b) state.setMode(Dual1) else state
+          case _ => state
+        }
       }
-
-      case VK_RIGHT => ifNotBlank(Some(state.right))
-      case VK_LEFT => ifNotBlank(Some(state.left))
-      case VK_UP => ifNotBlank(Some(state.zoomIn))
-      case VK_DOWN => ifNotBlank(Some(state.zoomOut))
-
-      case VK_SHIFT => if(state.mode==Dual1) Some(state.setMode(Dual1b)) else Some(state)
-
-      case VK_MINUS | VK_SUBTRACT => ifNotBlank(Some(state.minus))
-      case VK_PLUS | VK_ADD=> ifNotBlank(Some(state.plus))
-
-      case VK_8 | VK_NUMPAD8 => ifNotBlank(Some(state.scrollUp))
-      case VK_2 | VK_NUMPAD2 => ifNotBlank(Some(state.scrollDown))
-      case VK_4 | VK_NUMPAD4 => ifNotBlank(Some(state.scrollLeft))
-      case VK_6 | VK_NUMPAD6 => ifNotBlank(Some(state.scrollRight))
-
-      case VK_Q => None
-      case _ => Some(state)
-      
-    } else keyCode match {
-      case VK_SHIFT => if(state.mode==Dual1b) Some(state.setMode(Dual1)) else Some(state)
-      case _ => Some(state)
-    }
+    )
   }
 
   private def handleSpace(visibleFraction:Double):ReaderState =
@@ -314,6 +313,12 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
 
   def togglePageNumbers(newState: Int): Unit =
     updateState(state.setShowPageNumbers(newState == SELECTED))
+
+  def toggleGreyscale(newState: Int): Unit =
+    updateState(state.setGreyscale(newState == SELECTED))
+
+  def toggleSharpen(newState: Int): Unit =
+    updateState(state.setSharpen(newState == SELECTED))
 
   def changeMode(newMode:Mode):Unit =
     updateState(state.setMode(newMode))
@@ -430,20 +435,7 @@ object EventHandler {
 
       matchingRecentState match {
         case Some(recentState) =>
-          val savedState = recentState.save
-          new ReaderState(
-            savedState.mode,
-            partialStates.zip(savedState.currentPages).map((partialState, newPage) => partialState.setPage(newPage)),
-            savedState.zoomLevel,
-            savedState.hs,
-            savedState.vs,
-            savedState.size,
-            savedState.direction,
-            currentState.encoding,
-            savedState.showPageNumbers,
-            currentState.preferences,
-            currentState.recentStates,
-            savedState.frameDimensions)
+          mergeSavedState(currentState, recentState.save, partialStates)
         case None => currentState
       }
     } else {
