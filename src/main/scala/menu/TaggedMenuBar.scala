@@ -1,5 +1,5 @@
 /*
-  Copyright 2025 Paul Janssens - All rights reserved
+  Copyright 2025-2026 Paul Janssens - All rights reserved
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ class TaggedMenuBar extends MenuBar {
   }
 
   private def findMenu(tag: MenuKey): Option[TaggedMenu] =
-    TaggedUtils.find(getMenuCount, ix => getMenu(ix))(tag)
+    TaggedUtils.findMenu(getMenuCount, ix => getMenu(ix))(tag)
 
   def withMenuDo(tag: MenuKey, action: TaggedMenu => Unit): Unit =
     findMenu(tag).foreach(action)

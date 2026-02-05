@@ -1,5 +1,5 @@
 /*
-  Copyright 2025 Paul Janssens - All rights reserved
+  Copyright 2025-2026 Paul Janssens - All rights reserved
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -119,6 +119,8 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     val menuBar = frame.getMenuBar.asInstanceOf[TaggedMenuBar]
     val count = newState.partialStates.size
 
+    updateFileMenu(menuBar, newState)
+    
     updateRecentSubMenu(menuBar, newState)
 
     menuBar.withMenuDo(MenuKey.Mode, _.replaceMenuItems(modeMenuItems(count, newState.mode)(using this, lookup)))
@@ -132,6 +134,9 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
       pgn.setState(newState.showPageNumbers)
     })
   }
+
+  private def updateFileMenu(menuBar:TaggedMenuBar, newState:ReaderState):Unit =
+    menuBar.withMenuDo(MenuKey.File, _.setMenuItem(MenuItemKey.OpenOrReplace2nd, newState.mode.numFiles > 0))
 
   private def updateRecentSubMenu(menuBar:TaggedMenuBar, newState:ReaderState):Unit =
     menuBar.withSubMenuDo(MenuKey.File, MenuKey.Recent, _.replaceMenuItems(recentFileMenuItems(newState.recentStates)))
@@ -243,7 +248,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
     if(canScrollVertical(visibleFraction)) state.scrollDownBy(visibleFraction/(1-visibleFraction)) else state.nextPage
 
   private def canScrollVertical(visibleFraction:Double):Boolean =
-    (visibleFraction < 1.0  && state.vs < 1.0)
+    visibleFraction < 1.0  && state.vs < 1.0
 
   override def keyTyped(e: KeyEvent): Unit = {}
 
@@ -284,7 +289,9 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
   override def actionPerformed(event: ActionEvent): Unit = {
     event.getActionCommand match {
       case MenuItemKey.Open.description => 
-        updateStateForNewFiles(openFromUI(state), UI)
+        updateStateForNewFiles(openFromUI(state, false), UI)
+      case MenuItemKey.OpenOrReplace2nd.description =>
+        updateStateForNewFiles(openFromUI(state, true), UI)  
       case MenuItemKey.Info.description =>
         displayMetadata()
       case MenuItemKey.Clear.description =>
@@ -360,7 +367,7 @@ class EventHandler(frame:JFrame, panel1:ImagePanel, panel2:ImagePanel,
         case (file, Success(image)) => Some(image)
       })
       if (images.size == files.size) {
-        updateStateForNewFiles(openSelectedFiles(state, fileSelection, images), fileSelection)
+        updateStateForNewFiles(openSelectedFiles(state, false, fileSelection, images), fileSelection)
       }
     }
   }
@@ -422,24 +429,35 @@ object EventHandler {
     dummyOwner.dispose()
   }
 
-  def openFromUI(state:ReaderState): ReaderState =
-    openSelectedFiles(state, UI,
+  def openFromUI(state:ReaderState, onlySecondary:Boolean): ReaderState =
+    if(onlySecondary)
+      openSelectedFiles(state, onlySecondary, UI,
+        List(selectFileLoop("select 2nd file", state.encoding)).flatten)
+    else openSelectedFiles(state, onlySecondary, UI,
       List(selectFileLoop("select first file", state.encoding), selectFileLoop("select 2nd file", state.encoding)).flatten)
 
-  def openSelectedFiles(currentState:ReaderState, fileSelection:FileSelection, files:List[CBZImages]) : ReaderState = {
-    val partialStates = files.map(f => PartialState(f))
-    if (fileSelection == Restore) {
+  def openSelectedFiles(currentState:ReaderState, onlySecondary:Boolean, fileSelection:FileSelection, files:List[CBZImages]) : ReaderState = {
+    
+    if(onlySecondary && files.isEmpty) currentState else {
 
-      val matchingRecentState = currentState.recentStates.states.find(_.files == files.map(_.file))
-      // if there is no match, it means we could not find one or more files. Don't restore partially
+      val partialStates =
+        if (onlySecondary)
+          List(currentState.partialStates.head, PartialState(files.head))
+        else files.map(f => PartialState(f))
+        
+      if (fileSelection == Restore) {
 
-      matchingRecentState match {
-        case Some(recentState) =>
-          mergeSavedState(currentState, recentState.save, partialStates)
-        case None => currentState
+        val matchingRecentState = currentState.recentStates.states.find(_.files == files.map(_.file))
+        // if there is no match, it means we could not find one or more files. Don't restore partially
+
+        matchingRecentState match {
+          case Some(recentState) =>
+            mergeSavedState(currentState, recentState.save, partialStates)
+          case None => currentState
+        }
+      } else {
+        new ReaderState(partialStates, currentState)
       }
-    } else {
-      new ReaderState(partialStates, currentState)
     }
   }
 }

@@ -20,8 +20,9 @@ import ImagePanel.{greyFilter, indicatorFont}
 import state.ReaderState.Size.{Actual, Width}
 import CBZImages.PanelID
 import state.ReaderState
-
 import EventHandler.ScaledDimensions
+
+import ops.Filters
 
 import java.awt.{Color, Font, Graphics, Graphics2D}
 import java.awt.RenderingHints.{KEY_INTERPOLATION, VALUE_INTERPOLATION_BILINEAR}

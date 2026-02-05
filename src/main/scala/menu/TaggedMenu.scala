@@ -1,5 +1,5 @@
 /*
-  Copyright 2025 Paul Janssens - All rights reserved
+  Copyright 2025-2026 Paul Janssens - All rights reserved
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -17,14 +17,20 @@
 package be.afront.reader
 package menu
 
-import ResourceLookup.MenuKey
+import ResourceLookup.{MenuItemKey, MenuKey}
 
 import java.awt.{Menu, MenuBar, MenuComponent, MenuItem}
 
 case class TaggedMenu(key:MenuKey)(using lookup:ResourceLookup) extends Menu(lookup(key)) {
 
   private def findSubMenu(tag: MenuKey): Option[TaggedMenu] =
-    TaggedUtils.find(getItemCount, ix => getItem(ix))(tag)
+    TaggedUtils.findMenu(getItemCount, ix => getItem(ix))(tag)
+
+  private def findItem(tag: MenuItemKey): Option[MenuItem] =
+    TaggedUtils.findMenuItem(getItemCount, ix => getItem(ix))(tag)
+
+  private def findItemPosition(tag: MenuItemKey): Option[Int] =
+    TaggedUtils.findMenuItemIndex(getItemCount, ix => getItem(ix))(tag)
 
   def withSubMenuDo(subTag: MenuKey, action: TaggedMenu => Unit): Unit =
     findSubMenu(subTag).foreach(action)
@@ -33,7 +39,16 @@ case class TaggedMenu(key:MenuKey)(using lookup:ResourceLookup) extends Menu(loo
     removeAll()
     newItems.foreach(add)
     this
-  }  
+  }
+
+  def setMenuItem(key: MenuItemKey, enabled:Boolean): Unit =
+    findItem(key).foreach(item => item.setEnabled(enabled))
+
+  def removeMenuItem(key:MenuItemKey):Unit =
+    findItemPosition(key).foreach(remove)
+
+  def addMenuItemAfter(previousKey: MenuItemKey, toAdd:MenuItem): Unit =
+    findItemPosition(previousKey).foreach(ix => insert(toAdd,ix+1))
 }
 
 

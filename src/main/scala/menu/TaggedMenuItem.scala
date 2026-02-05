@@ -1,5 +1,5 @@
 /*
-  Copyright 2025-2026 Paul Janssens - All rights reserved
+  Copyright 2026 Paul Janssens - All rights reserved
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -15,25 +15,10 @@
 */
 
 package be.afront.reader
-package state
+package menu
 
-import AppPreferences.PreferenceKey
-import AppPreferences.PreferenceKey.AutoRestore
+import ResourceLookup.{MenuItemKey, MenuKey}
 
-case class AppPreferences(autoRestore:Boolean) {
-  
-  def changePreference(key:PreferenceKey, newValue:Boolean): AppPreferences =
-    key match {
-      case AutoRestore => copy(autoRestore = newValue)
-    }
-    
-}
+import java.awt.MenuItem
 
-object AppPreferences {
-  
-  val DEFAULT = new AppPreferences(false)
-
-  enum PreferenceKey {
-    case AutoRestore
-  }
-}
+case class TaggedMenuItem(key:MenuItemKey)(using lookup:ResourceLookup) extends MenuItem(lookup(key))

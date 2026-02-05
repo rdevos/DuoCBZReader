@@ -1,5 +1,5 @@
 /*
-  Copyright 2025 Paul Janssens - All rights reserved
+  Copyright 2025-2026 Paul Janssens - All rights reserved
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -46,7 +46,7 @@ object MenuBuilder {
   }
   
   def menuItem(key: MenuItemKey, enabled:Boolean)(using handler: EventHandler, lookup: ResourceLookup): MenuItem =
-    val item = new MenuItem(lookup(key))
+    val item = TaggedMenuItem(key)
     item.setActionCommand(key.description)
     item.setEnabled(enabled)
     item.addActionListener(handler)
@@ -63,6 +63,7 @@ object MenuBuilder {
   private def fileMenu(recentStates:RecentStates)(using EventHandler, ResourceLookup): TaggedMenu =
     localizedMenu(MenuKey.File, List(
       menuItem(MenuItemKey.Open, true),
+      menuItem(MenuItemKey.OpenOrReplace2nd, false),
       recentMenu(recentStates),
       menuItem(MenuItemKey.Info, true)))
 
