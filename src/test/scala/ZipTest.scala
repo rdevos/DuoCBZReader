@@ -1,6 +1,6 @@
 package be.afront.reader
 
-import ReaderState.Encoding.{CP932, DEFAULT, LATIN1}
+import state.ReaderState.Encoding.{CP932, DEFAULT, LATIN1}
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
